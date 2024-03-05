@@ -1,0 +1,162 @@
+FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu18.04
+
+WORKDIR /root/
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update -q && \
+    apt-get install -y autotools-dev automake libtool python3-pip vim python-scipy python-rtree
+
+# include ros melodic
+RUN apt-get update && \
+   apt-get install -y --no-install-recommends \
+         git \
+		cmake \
+		build-essential \
+		curl \
+		wget \
+		gnupg2 \
+		lsb-release \
+		ca-certificates \
+      net-tools \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' && \
+   curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+
+RUN apt-get update && \
+   apt-get install -y --no-install-recommends \
+		ros-melodic-desktop-full \
+		ros-melodic-image-transport \
+		ros-melodic-vision-msgs \
+		ros-melodic-message-filters \
+         python-rosdep \
+         python-rosinstall \
+         python-rosinstall-generator \
+         python-wstool \
+   && rm -rf /var/lib/apt/lists/*
+
+RUN echo 'source /opt/ros/melodic/setup.bash' >> $HOME/.bashrc && \
+    echo 'export ROS_MASTER_URI=http://localhost:11311' >> $HOME/.bashrc && \
+    echo 'export ROS_HOSTNAME=localhost' >> $HOME/.bashrc
+
+# install cmake
+RUN apt-get update && \
+    apt-get install -y build-essential wget && \
+    wget https://github.com/Kitware/CMake/releases/download/v3.22.0/cmake-3.22.0.tar.gz && \
+    tar -xf cmake-3.22.0.tar.gz && \
+    rm cmake-3.22.0.tar.gz && \
+    cd cmake-3.22.0 && \
+    ./bootstrap && \
+    make -j$(nproc) && \
+    make install
+
+# install ompl
+# first, need to instal ODE
+RUN git clone https://github.com/thomasmarsh/ODE.git && cd ODE && mkdir -p build && cd build && cmake .. && make && make install
+
+# second, need to install Py++
+COPY ./download/castxml.tar.xz $HOME
+RUN tar -xf $HOME/castxml.tar.xz -C $HOME && rm $HOME/castxml.tar.xz
+ENV PATH=/root/castxml/bin:${PATH}
+
+RUN sudo -H pip3 install -vU pygccxml pyplusplus numpy
+
+# then install ompl
+RUN git clone https://github.com/ompl/ompl.git && cd ompl && git reset --hard fca10b4bd4840856c7a9f50d1ee2688ba77e25aa && mkdir -p build/Release && cd build/Release && \
+    cmake -DCMAKE_INSTALL_PREFIX=/opt/ros/melodic ../.. -DPYTHON_EXEC=/usr/bin/python3  -DCASTXML=/root/castxml/bin/castxml && make -j$(nproc) && make install
+
+# install libtorch
+RUN apt-get install unzip && wget https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu117.zip && unzip libtorch-cxx11-abi-shared-with-deps-2.0.0+cu117.zip && rm libtorch-cxx11-abi-shared-with-deps-2.0.0+cu117.zip
+
+# include CUDA to path
+ENV CUDA_HOME /usr/local/cuda
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+ENV PATH $CUDA_HOME/bin:$PATH
+
+# install moveit
+# setup the rosdep
+RUN sudo apt -y install python-wstool python-catkin-tools clang-format-10 python-rosdep && \
+    mkdir -p ws_moveit/src && cd ws_moveit/src && git clone https://github.com/jih189/moveit_cbirrt.git && \
+    rosdep init && rosdep update --include-eol-distros && \
+    cd .. && rosdep install -y --from-paths src --ignore-src --rosdistro melodic
+
+# remove the ompl from ROS and reinstall the ompl in its build directory
+RUN apt-get -y remove $(apt list --installed | awk -F/ '{print $1}' | grep ompl) && cd ompl/build/Release && make install
+
+# compile moveit
+RUN cd ws_moveit && catkin config --extend /opt/ros/melodic --install --install-space /opt/ros/melodic --cmake-args -DCMAKE_BUILD_TYPE=Release && catkin build
+
+# Install necessary for building
+RUN apt-get update -q && \
+    apt-get install -y \
+    ros-melodic-trac-ik-lib \
+    ros-melodic-costmap-2d \
+    ros-melodic-rail-manipulation-msgs \
+    ros-melodic-joint-trajectory-controller \
+    ros-melodic-teleop-twist-keyboard \
+    ros-melodic-base-local-planner \
+    ros-melodic-costmap-converter \
+    ros-melodic-mbf-costmap-core \
+    ros-melodic-mbf-msgs \
+    ros-melodic-teb-local-planner \
+    ros-melodic-ros-numpy \
+    python3-yaml \
+    python3-netifaces
+
+# install python3 package required for ROS
+RUN pip3 install rospkg catkin_pkg
+
+# install python3.8
+RUN apt-get update && apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev && \
+    wget https://www.python.org/ftp/python/3.8.16/Python-3.8.16.tgz && tar -xf Python-3.8.16.tgz && rm Python-3.8.16.tgz && \
+    cd Python-3.8.16 && ./configure --enable-shared --prefix /usr --enable-optimizations && make -j$(nproc) && make altinstall && \
+    ln -s /usr/lib/python3.8/_sysconfigdata__linux_x86_64-linux-gnu.py  /usr/lib/python3.8/_sysconfigdata__x86_64-linux-gnu.py
+
+# install boost 1.76
+RUN apt-get install -y g++ python-dev libicu-dev libboost-all-dev && \
+    wget -c 'http://sourceforge.net/projects/boost/files/boost/1.76.0/boost_1_76_0.tar.bz2/download' && \
+    tar xf download && \
+    rm download && \
+    cd boost_1_76_0 && ./bootstrap.sh --with-python=/usr/bin/python3.8 && \
+    ./b2 --prefix=/root/boost_1_76_0 variant=release link=shared threading=multi runtime-link=shared toolset=gcc install
+ENV LD_LIBRARY_PATH=/root/boost_1_76_0/lib:$LD_LIBRARY_PATH
+
+# compile ompl with python3.8
+RUN sudo -H python3.8 -m pip install -vU pygccxml pyplusplus numpy
+
+## Install yaml-cpp parser
+RUN git clone https://github.com/jbeder/yaml-cpp.git && cd yaml-cpp && mkdir build && cd build && cmake -DBUILD_SHARED_LIBS=ON .. && make && make install
+
+# then install ompl
+RUN cd ompl && mkdir -p python_build/Release && cd python_build/Release && \
+    cmake ../.. -DPYTHON_EXEC=/usr/bin/python3.8  -DCASTXML=/root/castxml/bin/castxml -DBOOST_ROOT=/root/boost_1_76_0 -DBOOST_LIBRARYDIR=/root/boost_1_76_0/lib && make update_bindings && make -j$(nproc) && make install -j$(nproc)
+
+# # uninstall yaml-cpp (not the original one)
+RUN cd yaml-cpp/build && make uninstall
+
+# install python3 package required for ROS
+RUN python3.8 -m pip install rospkg catkin_pkg netifaces
+RUN python3.8 -m pip install --ignore-installed scikit-learn PyYAML
+
+# update skikit-image
+RUN python3.8 -m pip install --upgrade scikit-image
+
+# # install torch with opencv-python
+RUN python3.8 -m pip install --upgrade pip && python3.8 -m pip install --upgrade pillow && \
+    python3.8 -m pip install torch==2.0.0+cu117 torchvision==0.15.1+cu117 torchaudio==2.0.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117 && \
+    python3.8 -m pip install --no-cache-dir torch-scatter -f https://pytorch-geometric.com/whl/torch-2.0.0+cu117.html && \
+    python3.8 -m pip install --no-cache-dir torch-sparse -f https://pytorch-geometric.com/whl/torch-2.0.0+cu117.html && \
+    python3.8 -m pip install --no-cache-dir torch-cluster -f https://pytorch-geometric.com/whl/torch-2.0.0+cu117.html && \
+    python3.8 -m pip install --no-cache-dir torch-spline-conv -f https://pytorch-geometric.com/whl/torch-2.0.0+cu117.html && \
+    python3.8 -m pip install --no-cache-dir torch-geometric -f https://pytorch-geometric.com/whl/torch-2.0.0+cu117.html && \
+    python3.8 -m pip install einops && \
+    python3.8 -m pip install tensorboard && \
+    python3.8 -m pip install opencv-python --ignore-installed PyYAML
+
+# install packages needed in task planner
+RUN apt-get update && apt-get install python-pip python-tk s3cmd -y && python2.7 -m pip install networkx tqdm trimesh==3.21.0 scikit-learn && python -m pip install python-fcl --upgrade
+
+RUN rm -rf /var/lib/apt/lists/*
+
+COPY ./download/.s3cfg /root/

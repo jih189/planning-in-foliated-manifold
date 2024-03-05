@@ -1,0 +1,64 @@
+task_parameters:
+  task_name: "open_bottle"
+  task_type: ""
+  num_samples: 5000
+  save_path: "/check"
+
+initial_joint_state:
+  torso_lift_joint: 0.38
+  shoulder_pan_joint: -1.28
+  shoulder_lift_joint: 1.52
+  upperarm_roll_joint: 0.35
+  elbow_flex_joint: 1.81
+  wrist_flex_joint: 1.47
+  l_gripper_finger_joint: 0.04
+  r_gripper_finger_joint: 0.04
+
+environment:
+  env_mesh_path: "/mesh_dir/desk_with_bottle_frame.stl"
+  manipulated_object_mesh_path: "/mesh_dir/lid.stl"
+  grasp_poses_file: "/mesh_dir/lid_simple.npz"
+  env_pose:
+    frame_id: "base_link"
+    position: [0.97, -0.25, -0.02]
+    orientation: [0.0, 0.0, 0.7071, -0.7071]
+
+grasp:
+  num_samples: 40
+  rotated_matrix:
+    - [1, 0, 0, -0.17]
+    - [0, 1, 0, 0.0]
+    - [0, 0, 1, 0.0]
+    - [0, 0, 0, 1]
+
+placement:
+  similarity_sigma: 0.1
+  foliations:
+    - name: "rotate_1"
+      type: "circular"
+      orientation_tolerance: [0.01, 0.01, 1.47]
+      position_tolerance: [0.0009, 0.0009, 0.0009]
+      reference_pose_position: [ 0.842, -0.074, 0.865 ]
+      reference_pose_orientation: [ 0.0, 0.0, 1.57 ]
+      placement_position: [0.842, -0.074, 0.865]
+      radius: 0
+      start_angle_z: 0.1
+      end_angle_z: 3.04
+      steps: 10
+    - name: "trans"
+      type: "none"
+      orientation_tolerance: [0.01, 0.01, 1.47]
+      position_tolerance: [0.0009, 0.0009, 0.0009]
+      reference_pose_position: [ 0.842, -0.074, 0.865 ]
+      reference_pose_orientation: [ 0.0, 0.0, 3.14 ]
+    - name: "rotate_2"
+      type: "circular"
+      orientation_tolerance: [0.01, 0.01, 1.47]
+      position_tolerance: [0.0009, 0.0009, 0.0009]
+      reference_pose_position: [ 0.842, -0.074, 0.865 ]
+      reference_pose_orientation: [ 0.0, 0.0, 4.71 ]
+      placement_position: [0.842, -0.074, 0.865]
+      radius: 0
+      start_angle_z: 3.24
+      end_angle_z: 6.18
+      steps: 10

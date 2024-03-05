@@ -1,0 +1,51 @@
+task_parameters:
+  task_name: "open_door"
+  task_type: ""
+  num_samples: 5000
+  random_seed: 3897
+  save_path: "/check"
+
+initial_joint_state:
+  torso_lift_joint: 0.38 # 21.772396214971284
+  shoulder_pan_joint: -1.28 # -73.33859777674537
+  shoulder_lift_joint: 1.52 # 87.08958485988514
+  upperarm_roll_joint: 0.35 # 20.05352282957881
+  elbow_flex_joint: 1.81 # 103.705360918679
+  wrist_flex_joint: 1.47 # 84.22479588423103
+  l_gripper_finger_joint: 0.04 # 2.291831180523293
+  r_gripper_finger_joint: 0.04 # 2.291831180523293
+
+environment:
+  env_mesh_path: "/mesh_dir/wardrobe.stl"
+  manipulated_object_mesh_path: "/mesh_dir/wardrobe_left_door_v3.stl"
+  grasp_poses_file: "/mesh_dir/wardrobe_left_door_v3.npz"
+  env_pose:
+    frame_id: "base_link"
+    position: [1.78, 1.35, -0.32]
+    orientation: [0.0, 0.0, 0.707, -0.707]
+
+grasp:
+  num_samples: 100
+  rotated_matrix:
+    - [1, 0, 0, -0.17]
+    - [0, 1, 0, 0.0]
+    - [0, 0, 1, 0.0]
+    - [0, 0, 0, 1]
+
+placement:
+  type: "circular"
+  similarity_sigma: 0.1
+  foliations:
+    - name: "rotate"
+      orientation_tolerance: [ 0.0001, 0.0001, 6.28318530718 ]
+      position_tolerance: [ 0.0002, 0.0008, 0.0002 ]
+      reference_pose:
+        - [ 1, 0, 0, 1.18 ]
+        - [ 0, 1, 0, -0.60 ]
+        - [ 0, 0, 1, -0.2 ]
+        - [ 0, 0, 0, 1 ]
+      placement_position: [1.18, -0.60, -0.2]
+      radius: 0
+      start_angle_z: -0.2
+      end_angle_z: -1.56
+      steps: 25

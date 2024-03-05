@@ -1,0 +1,7 @@
+CMakelists.txt
+*.pyc
+.ipynb_checkpoints/
+task_planner/empty_world_trajectory_data
+*result*.json
+.Trash*
+.idea

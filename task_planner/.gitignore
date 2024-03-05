@@ -1,0 +1,15 @@
+experiment_dir/
+evaluated_data_dir/
+gmm_data/
+check/
+
+# the following is to copy created foliated problems
+foliated_problems/
+# ide config
+**/.idea/
+**/.ipynb_checkpoints/
+
+.idea/
+.ipynb_checkpoints/
+
+.results/

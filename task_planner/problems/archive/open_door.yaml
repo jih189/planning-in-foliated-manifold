@@ -1,0 +1,58 @@
+task_parameters:
+  task_name: "open_door"
+  task_type: ""
+  num_samples: 30000
+  random_seed: 3897
+  save_path: "/check"
+
+initial_joint_state:
+  torso_lift_joint: 0.38 # 21.772396214971284
+  shoulder_pan_joint: -1.28 # -73.33859777674537
+  shoulder_lift_joint: 1.52 # 87.08958485988514
+  upperarm_roll_joint: 0.35 # 20.05352282957881
+  elbow_flex_joint: 1.81 # 103.705360918679
+  wrist_flex_joint: 1.47 # 84.22479588423103
+  l_gripper_finger_joint: 0.04 # 2.291831180523293
+  r_gripper_finger_joint: 0.04 # 2.291831180523293
+
+environment:
+  env_mesh_path: "/mesh_dir/door_frame.stl"
+  manipulated_object_mesh_path: "/mesh_dir/door.stl"
+  grasp_poses_file: "/mesh_dir/door.npz"
+  env_pose:
+    frame_id: "base_link"
+    position:
+      x: 2.4
+      y: -0.28
+      z: -0.02
+    orientation:
+      x: 0.0
+      y: 0.0
+      z: 0.5
+      w: 0.86603
+  ref_pose:
+      - [1, 0, 0, 1]
+      - [0, 1, 0, 1.0]
+      - [0, 0, 1, 0.0]
+      - [0, 0, 0, 1]
+
+placement:
+  type: "circular"
+  center_position: [1, 1.0, 0.0]
+  radius: 0
+  start_angle: -0
+  end_angle: -1.5
+  steps: 6
+
+grasp:
+  num_samples: 100
+  rotated_matrix:
+    - [1, 0, 0, -0.17]
+    - [0, 1, 0, 0.0]
+    - [0, 0, 1, 0.0]
+    - [0, 0, 0, 1]
+
+foliation:
+  similarity_sigma: 0.1
+  orientation_tolerance: [0.0005, 0.0005, 6.28318530718]
+  position_tolerance: [0.0003, 0.0003, 0.0003]
