@@ -1,1 +1,1 @@
-docker build -f Dockerfile -t jiaming-ubuntu18:latest .
+docker build -f Dockerfile -t planning-in-foliation:latest .
