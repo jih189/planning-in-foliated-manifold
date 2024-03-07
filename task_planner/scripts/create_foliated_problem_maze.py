@@ -388,6 +388,48 @@ if __name__ == "__main__":
     foliated_problem.set_start_manifold_candidates(start_candidates)
     foliated_problem.set_goal_manifold_candidates(goal_candidates)
 
+    ###############################################################################################################
+    # visualize both intermedaite placements and obstacles
+    marker_array = MarkerArray()
+
+    # visualize the obstacle
+    obstacle_marker = Marker()
+    obstacle_marker.header.frame_id = "base_link"
+    obstacle_marker.header.stamp = rospy.Time.now()
+    obstacle_marker.ns = "obstacle"
+    obstacle_marker.id = 0
+    obstacle_marker.type = Marker.MESH_RESOURCE
+    obstacle_marker.action = Marker.ADD
+    obstacle_marker.pose = env_pose.pose
+    obstacle_marker.scale = Point(1, 1, 1)
+    obstacle_marker.color = ColorRGBA(0.5, 0.5, 0.5, 1)
+    obstacle_marker.mesh_resource = (
+        "package://task_planner/mesh_dir/" + os.path.basename(env_mesh_path)
+    )
+    marker_array.markers.append(obstacle_marker)
+
+    # visualize the placements
+    for i, placement in enumerate(feasible_placements):
+        object_marker = Marker()
+        object_marker.header.frame_id = "base_link"
+        object_marker.header.stamp = rospy.Time.now()
+        object_marker.ns = "placement"
+        object_marker.id = i + 1
+        object_marker.type = Marker.MESH_RESOURCE
+        object_marker.action = Marker.ADD
+        object_marker.pose = msgify(geometry_msgs.msg.Pose, placement)
+        object_marker.scale = Point(1, 1, 1)
+        object_marker.color = ColorRGBA(0.5, 0.5, 0.5, 1)
+        object_marker.mesh_resource = (
+            "package://task_planner/mesh_dir/"
+            + os.path.basename(manipulated_object_mesh_path)
+        )
+        marker_array.markers.append(object_marker)
+
+    problem_publisher.publish(marker_array)
+
+    ###############################################################################################################
+
     # save the foliated problem
     foliated_problem.save(package_path + "/check")
 

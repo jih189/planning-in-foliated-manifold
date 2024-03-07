@@ -3,9 +3,6 @@
 This is the project to develop a planning framework for foliated manifolds. We separate the system into two sections. One is the task planner, while another is motion planner which is using [Moveit](https://github.com/jih189/moveit_cbirrt) which we modified to work with foliated manifolds. However, this part is in the docker container, so you can search more information of the motion planner in that repo.
 
 Components of this project are:
-* <h3>data_generation</h3>
-    Data generation is the code used to generate self-collision-free trajectories and convert it into GMM which can be used in the task planner.
-
 * <h3>task_planner</h3>
     The actual planning framework we are developing.
 

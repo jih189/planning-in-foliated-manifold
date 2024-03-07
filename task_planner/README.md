@@ -157,7 +157,7 @@ In case you want to visualize the task and sampling data, you can add two Marker
 Link to the tutorial [GMM generation tutorial](scripts/gmm_related/README.md)
 
 ## Experience task generation tutorial
-TODO
+Here is the tutorial about how we convert a manipulation problem into a foliation problem, so you can use our planning framework to solve it. [Problem generation tutorial](readme_files/problem_generation_tutorial.md).
 
 ## Evaluation tutorial
 To evaluation the performance of our planning framework, we need to run the following code to generate the result. 
