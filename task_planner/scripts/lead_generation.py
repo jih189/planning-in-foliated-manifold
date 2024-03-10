@@ -6,6 +6,7 @@ class LeadGeneration:
 
         self.manifolds_in_foliation = {} # {foliation_name: [manifold1, manifold2, ...]}
         self.transition_maps = {} # {(foliation1_name, foliation2_name): [(manifold1, manifold2), ...]}
+        self.similarity_matrix_in_foliations = {} # {foliation_name: similarity_matrix}
 
     def add_foliation(self, foliation):
         '''
@@ -17,6 +18,7 @@ class LeadGeneration:
             self.graph.add_node(foliation["name"] + "_" + str(i), foliation_name=foliation["name"], manifold_index=i)
             manifolds.append(foliation["name"] + "_" + str(i))
         self.manifolds_in_foliation[foliation["name"]] = manifolds
+        self.similarity_matrix_in_foliations[foliation["name"]] = foliation["similarity_matrix"]
         
     def add_intersection(self, intersection):
         '''
@@ -67,4 +69,11 @@ class LeadGeneration:
         '''
         Add penalty to the edge between two manifolds.
         '''
-        self.graph[foliation_1 + "_" + str(manifold_1_index)][foliation_2 + "_" + str(manifold_2_index)]["weight"] += penalty
+
+        manifolds_from_first_foliation = self.manifolds_in_foliation[foliation_1]
+        manifolds_from_second_foliation = self.manifolds_in_foliation[foliation_2]
+
+        for i in range(len(manifolds_from_first_foliation)):
+            for j in range(len(manifolds_from_second_foliation)):
+                self.graph[manifolds_from_first_foliation[i]][manifolds_from_second_foliation[j]]["weight"] += \
+                    penalty * self.similarity_matrix_in_foliations[foliation_1][manifold_1_index][i] * self.similarity_matrix_in_foliations[foliation_2][manifold_2_index][j]

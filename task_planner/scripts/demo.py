@@ -25,7 +25,8 @@ if __name__ == "__main__":
                       [0,1,0,-0.55],
                       [0,0,1,0.78],
                       [0,0,0,1]]),
-        ]
+        ],
+        "similarity_matrix": np.identity(1)
     }
 
     grasp_input = np.load(package_path + "/mesh_dir/cup.npz")
@@ -34,13 +35,15 @@ if __name__ == "__main__":
     foliation_slide_object = {
         "name": "slide_object",
         "co-parameter-type": "grasp",
-        "co-parameter-set": grasp_set[:10]
+        "co-parameter-set": grasp_set,
+        "similarity_matrix": np.identity(len(grasp_set))
     }
 
     foliation_pour_object = {
         "name": "pour_object",
         "co-parameter-type": "grasp",
-        "co-parameter-set": grasp_set[:10]
+        "co-parameter-set": grasp_set,
+        "similarity_matrix": np.identity(len(grasp_set))
     }
 
     foliation_reset_robot = {
@@ -51,7 +54,8 @@ if __name__ == "__main__":
                         [0,1,0,-0.15],
                         [0,0,1,0.78],
                         [0,0,0,1]]),
-        ]
+        ],
+        "similarity_matrix": np.identity(1)
     }
 
     intersection_approach_object_slide_object = {
