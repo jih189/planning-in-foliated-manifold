@@ -34,7 +34,13 @@ if __name__ == "__main__":
     foliation_slide_object = {
         "name": "slide_object",
         "co-parameter-type": "grasp",
-        "co-parameter-set": grasp_set
+        "co-parameter-set": grasp_set[:10]
+    }
+
+    foliation_pour_object = {
+        "name": "pour_object",
+        "co-parameter-type": "grasp",
+        "co-parameter-set": grasp_set[:10]
     }
 
     foliation_reset_robot = {
@@ -53,13 +59,28 @@ if __name__ == "__main__":
         "foliations": [foliation_approach_object, foliation_slide_object]
     }
 
-    intersection_slide_object_reset_robot = {
-        "name": "slide_object_reset_robot",
-        "foliations": [foliation_slide_object, foliation_reset_robot]
+    intersecttion_slide_object_pour_object = {
+        "name": "slide_object_pour_object",
+        "foliations": [foliation_slide_object, foliation_pour_object]
+    }
+
+    intersection_pour_object_reset_robot = {
+        "name": "pour_object_reset_robot",
+        "foliations": [foliation_pour_object, foliation_reset_robot]
     }
 
     lead_generator = LeadGeneration()
     lead_generator.add_foliation(foliation_approach_object)
     lead_generator.add_foliation(foliation_slide_object)
+    lead_generator.add_foliation(foliation_pour_object)
     lead_generator.add_foliation(foliation_reset_robot)
+
     lead_generator.add_intersection(intersection_approach_object_slide_object)
+    lead_generator.add_intersection(intersecttion_slide_object_pour_object)
+    lead_generator.add_intersection(intersection_pour_object_reset_robot)
+
+    lead = lead_generator.get_lead("approach_object", 0, "reset_robot", 0)
+
+    # add penalty to the edges
+    lead_generator.add_penalty("approach_object", 0, "slide_object", 0, 1.0)
+
