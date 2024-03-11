@@ -880,3 +880,31 @@ class BaseTaskPlanner:
 
     # def get_manifold_id_from_task_solution_graph(self, intersection_id1_, intersection_id2_):
     #     return self.task_solution_graph.edges[intersection_id1_, intersection_id2_]['manifold_id']
+
+
+class FoliationConfig:
+    def __init__(self, foliation_set, foliated_intersection_set):
+        for foliation in foliation_set:
+            # check if foliation contains key 'name', 'co-parameter-type', co-parameter-set', and 'similarity matrix'
+            if (
+                "name" not in foliation
+                or "co-parameter-type" not in foliation
+                or "co-parameter-set" not in foliation
+                or "similarity-matrix" not in foliation
+            ):
+                raise Exception(
+                    "Each foliation in foliation_set should contain key 'name', 'co-parameter-type', 'co-parameter-set', and 'similarity matrix'"
+                )
+
+        for intersection in foliated_intersection_set:
+            # check if intersection contains key 'name', 'foliation1', and 'foliation2'
+            if (
+                "name" not in intersection
+                or "foliation1" not in intersection
+                or "foliation2" not in intersection
+            ):
+                raise Exception(
+                    "Each intersection in foliated_intersection_set should contain key 'name', 'foliation1', and 'foliation2'"
+                )
+        self.foliation_set = foliation_set
+        self.foliated_intersection_set = foliated_intersection_set

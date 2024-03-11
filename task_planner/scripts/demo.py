@@ -3,7 +3,7 @@
 import rospy
 import rospkg
 from moveit_msgs.msg import Constraints, PositionConstraint, OrientationConstraint, BoundingVolume
-from lead_generation import LeadGeneration
+from lead_planner import LeadPlanner
 
 import numpy as np
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         "foliations": [foliation_pour_object, foliation_reset_robot]
     }
 
-    lead_generator = LeadGeneration()
+    lead_generator = LeadPlanner()
     lead_generator.add_foliation(foliation_approach_object)
     lead_generator.add_foliation(foliation_slide_object)
     lead_generator.add_foliation(foliation_pour_object)
