@@ -21,6 +21,22 @@ except:
             "Failed to import pyassimp, see https://github.com/ros-planning/moveit/issues/86 for more info"
         )
 
+############################# CONSTANTS #############################
+FETCH_GRIPPER_ROTATION = np.array([[1, 0, 0, -0.17], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+
+# Create a JointState message
+INIT_JOINT_NAMES = [
+        "torso_lift_joint",
+        "shoulder_pan_joint",
+        "shoulder_lift_joint",
+        "upperarm_roll_joint",
+        "elbow_flex_joint",
+        "wrist_flex_joint",
+        "l_gripper_finger_joint",
+        "r_gripper_finger_joint",
+    ]
+INIT_JOINT_POSITIONS = [0.38, -1.28, 1.52, 0.35, 1.81, 1.47, 0.04, 0.04]
+#####################################################################
 
 # convert a list of joint values to robotTrajectory
 def convert_joint_values_to_robot_trajectory(joint_values_list_, joint_names_):
@@ -43,7 +59,6 @@ def convert_joint_values_to_robot_trajectory(joint_values_list_, joint_names_):
 
     return robot_trajectory
 
-
 def convert_joint_values_to_robot_state(joint_values_list_, joint_names_, robot_):
     """
     convert a list of joint values to robotState
@@ -59,7 +74,6 @@ def convert_joint_values_to_robot_state(joint_values_list_, joint_names_, robot_
         ] = joint_value
     moveit_robot_state.joint_state.position = tuple(position_list)
     return moveit_robot_state
-
 
 def get_no_constraint():
     no_constraint = Constraints()
@@ -96,10 +110,7 @@ def get_no_constraint():
     no_constraint.in_hand_pose = in_hand_pose
     return no_constraint
 
-
-def construct_moveit_constraint(
-    in_hand_pose_, constraint_pose_, orientation_constraint_, position_constraint_
-):
+def construct_moveit_constraint(in_hand_pose_, constraint_pose_, orientation_constraint_, position_constraint_):
     moveit_quaternion = tf_trans.quaternion_from_matrix(
         constraint_pose_
     )  # return x, y z, w
@@ -193,7 +204,6 @@ def construct_moveit_constraint(
 
     return moveit_constraint
 
-
 def make_mesh(name, pose, filename, scale=(1, 1, 1)):
     co = CollisionObject()
     if pyassimp is False:
@@ -259,14 +269,12 @@ def convert_pose_stamped_to_matrix(pose_stamped):
     pose_matrix[2, 3] = pose_stamped.pose.position.z
     return pose_matrix
 
-
 def create_pose_stamped(pose_data):
     pose = create_pose_stamped_from_raw(pose_data['frame_id'], pose_data['position'][0], pose_data['position'][1],
                                         pose_data['position'][2], pose_data['orientation'][0],
                                         pose_data['orientation'][1], pose_data['orientation'][2],
                                         pose_data['orientation'][3])
     return pose
-
 
 def create_pose_stamped_from_raw(frame_id, x, y, z, o_x, o_y, o_z, o_w):
     pose = PoseStamped()
@@ -279,15 +287,6 @@ def create_pose_stamped_from_raw(frame_id, x, y, z, o_x, o_y, o_z, o_w):
     pose.pose.orientation.z = o_z
     pose.pose.orientation.w = o_w
     return pose
-
-
-def get_position_difference_between_poses(pose_1_, pose_2_):
-    '''
-    Get the position difference between two poses.
-    pose_1_ and pose_2_ are both 4x4 numpy matrices.
-    '''
-    return np.linalg.norm(pose_1_[:3, 3] - pose_2_[:3, 3])
-
 
 def gaussian_similarity(distance, max_distance, sigma=0.01):
     """
@@ -311,6 +310,27 @@ def gaussian_similarity(distance, max_distance, sigma=0.01):
 
     return score
 
+def generate_similarity_matrix(configuration_list, difference_function):
+    '''
+    based on the difference function to generate the similarity matrix for the configuration list
+    '''
+    different_matrix = np.zeros((len(configuration_list), len(configuration_list)))
+    for i in range(len(configuration_list)):
+        for j in range(len(configuration_list)):
+            if i == j:
+                different_matrix[i, j] = 0
+            different_matrix[i, j] = difference_function(
+                configuration_list[i], configuration_list[j]
+            )
+
+    similarity_matrix = np.zeros((len(configuration_list), len(configuration_list)))
+    max_distance = np.max(different_matrix)
+    for i in range(len(configuration_list)):
+        for j in range(len(configuration_list)):
+            similarity_matrix[i, j] = gaussian_similarity(
+                different_matrix[i, j], max_distance, sigma=0.1
+            )
+    return similarity_matrix
 
 def collision_check(collision_manager, obj_mesh, obj_pose):
     obj_mesh = trimesh.load_mesh(obj_mesh)

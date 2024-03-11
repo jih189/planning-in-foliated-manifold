@@ -1,10 +1,10 @@
 <robot name="fetch">
   <link name="base_link">
-    <inertial>
+    <!--inertial>
       <origin rpy="0 0 0" xyz="-0.0036 0.0 0.0014" />
       <mass value="70.1294" />
       <inertia ixx="1.225" ixy="0.0099" ixz="0.0062" iyy="1.2853" iyz="-0.0034" izz="0.987" />
-    </inertial>
+    </inertial-->
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
