@@ -3,7 +3,6 @@ import numpy as np
 import networkx as nx
 from foliated_base_class import (
     BaseTaskPlanner,
-    ManifoldDetail,
     IntersectionDetail,
     Task,
 )
