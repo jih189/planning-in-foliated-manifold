@@ -33,6 +33,9 @@ class CustomIntersection(BaseIntersection):
         ):
         super(CustomIntersection, self).__init__(foliation1_name, co_parameter1_index, foliation2_name, co_parameter2_index, intersection_action)
 
+    def get_intersection_action(self):
+        return self.intersection_action[1]
+
     def get_edge_configurations(self):
         return [self.intersection_action[0], self.intersection_action[0]]
 

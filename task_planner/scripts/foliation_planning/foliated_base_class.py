@@ -21,6 +21,11 @@ class BaseIntersection:
         self.intersection_action = intersection_action # the action to transit from one manifold to another manifold
 
     @abstractmethod
+    def get_intersection_action(self):
+        """Return the intersection action. That is, after the agent reaches the intersection, it will perform this action to switch to the next manifold."""
+        raise NotImplementedError("Please Implement this method")
+
+    @abstractmethod
     def get_edge_configurations(self):
         """
         Return two edge configurations of intersection motion. That is, this two edge configurations 

@@ -6,6 +6,7 @@ import rospkg
 import numpy as np
 from custom_foliated_class import CustomFoliationConfig
 from foliation_planning.foliated_base_class import FoliatedProblem
+from foliation_planning.foliated_planning_framework import FoliatedPlanningFramework
 
 if __name__ == "__main__":
     rospy.init_node("demo_node", anonymous=True)
@@ -77,3 +78,19 @@ if __name__ == "__main__":
 
     foliation_problem = FoliatedProblem("sliding_cup_on_desk", foliation_config)
     
+    foliated_planning_framework = FoliatedPlanningFramework()
+
+    task_planner = MTGTaskPlanner()
+
+    foliated_planning_framework.set_task_planner(task_planner)
+
+    foliated_planning_framework.set_foliated_problem(foliation_problem)
+
+    foliated_planning_framework.setStartAndGoal(
+        start_foliation_index,
+        start_co_parameter_index,
+        start_configuration,
+        goal_foliation_index,
+        0,
+        goal_configuration,
+    )
