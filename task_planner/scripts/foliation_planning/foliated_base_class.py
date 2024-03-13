@@ -85,72 +85,45 @@ class BaseFoliation:
         )
 
 class FoliatedIntersection:
-    """This class represents a foliated intersection"""
+    """
+        This class represents a foliated intersection.
+        It should contain the information about how to sample intersection between two manifolds
+        from foliation1 and foliation2. Thus, the intersection sampler can use this information
+        to sample intersection between two manifolds.
+    """
 
     def __init__(
         self,
+        name,
         foliation1,
         foliation2,
-        sampling_function,
-        prepare_sample_function=None,
-        sample_done_function=None,
+        intersection_region_constraints
     ):
-        # check if the input is BaseFoliation class
-        if not isinstance(foliation1, BaseFoliation):
-            raise Exception("foliation1 is not a BaseFoliation class")
-        if not isinstance(foliation2, BaseFoliation):
-            raise Exception("foliation2 is not a BaseFoliation class")
-        if not callable(sampling_function):
-            raise Exception("sampling_function is not a function")
-
+        # Constructor
+        self.name = name
         self.foliation1 = foliation1
         self.foliation2 = foliation2
-        # the sampling function will receive two list of co_parameters from each foliation, then return a BaseIntersection class.
-        self.prepare_sample_function = prepare_sample_function
-        self.sampling_function = sampling_function
-        self.sample_done_function = sample_done_function
+        self.intersection_region_constraints = intersection_region_constraints
 
-    def prepare_sample(self):
-        if self.prepare_sample_function is None:
-            return
-        self.prepare_sample_function()
+class BaseIntersectionSampler:
+    __metaclass__ = ABCMeta
 
-    def sample_done(self):
-        if self.sample_done_function is None:
-            return
-        self.sample_done_function()
-
-    def sample(self, co_parameter1_index, co_parameter2_index):
-        """
-        Given two co-parameters from two foliations, sample an intersection between them.
-        """
-
-        if not isinstance(co_parameter1_index, int) or not isinstance(co_parameter2_index, int):
-            raise Exception(
-                "One of input is not an integer value!!!"
-            )
-
-        (success_flag, sampled_intersection) = self.sampling_function(self.foliation1, self.foliation2, co_parameter1_index, co_parameter2_index)
-
-        if not isinstance(success_flag, bool):
-            raise Exception(
-                "The first return value of sampling function is not a boolean value!!!"
-            )
-        
-        if not success_flag:
-            return (success_flag, sampled_intersection)
-        
-        if not isinstance(sampled_intersection, BaseIntersection):
-            raise Exception("Sampled intersection is not a BaseIntersection class")
-
-        return (success_flag, sampled_intersection)
+    @abstractmethod
+    def sample_intersection(self, foliated_intersection):
+        # sample intersection between two manifolds from foliation1 and foliation2
+        raise NotImplementedError("Please Implement this method")
 
 class FoliatedProblem:
-    def __init__(self, problem_name, foliations, foliated_intersections):
+    def __init__(self, problem_name, foliation_configuration):
         """Constructor for FoliatedProblem class"""
         self.problem_name = problem_name  # name of the problem
-        self.foliations = foliations  # list of foliations.
-        self.foliated_intersections = foliated_intersections  # list of foliated intersections.
+        
+        # check if foliation_configuration is a FoliationConfig class
+        if not isinstance(foliation_configuration, FoliationConfig):
+            raise Exception("foliation_configuration is not a FoliationConfig class")
+
+        self.foliations = foliation_configuration.get_foliations()  # list of foliations.
+        self.foliated_intersections = foliation_configuration.get_foliated_intersections()  # list of foliated intersections.
         self.intersections = []  # list of intersections, this should be empty initially.
 
     def get_foliation_index(self, foliation_name):
@@ -379,29 +352,47 @@ class BaseTaskPlanner:
         """
         self.total_similiarity_table[foliation_id_] = similarity_matrix_
 
-# class FoliationConfig:
-#     def __init__(self, foliation_set, foliated_intersection_set):
-#         for foliation in foliation_set:
-#             # check if foliation contains key 'name', 'co-parameter-type', co-parameter-set', and 'similarity matrix'
-#             if (
-#                 "name" not in foliation
-#                 or "co-parameter-type" not in foliation
-#                 or "co-parameter-set" not in foliation
-#                 or "similarity-matrix" not in foliation
-#             ):
-#                 raise Exception(
-#                     "Each foliation in foliation_set should contain key 'name', 'co-parameter-type', 'co-parameter-set', and 'similarity matrix'"
-#                 )
+class FoliationConfig:
+    __metaclass__ = ABCMeta
+    def __init__(self, foliation_set, foliated_intersection_set):
+        for foliation in foliation_set:
+            # check if foliation contains key 'name', 'co-parameter-type', co-parameter-set', and 'similarity matrix'
+            if (
+                "name" not in foliation
+                or "co-parameter-type" not in foliation
+                or "co-parameter-set" not in foliation
+                or "similarity-matrix" not in foliation
+            ):
+                raise Exception(
+                    "Each foliation in foliation_set should contain key 'name', 'co-parameter-type', 'co-parameter-set', and 'similarity matrix'"
+                )
 
-#         for intersection in foliated_intersection_set:
-#             # check if intersection contains key 'name', 'foliation1', and 'foliation2'
-#             if (
-#                 "name" not in intersection
-#                 or "foliation1" not in intersection
-#                 or "foliation2" not in intersection
-#             ):
-#                 raise Exception(
-#                     "Each intersection in foliated_intersection_set should contain key 'name', 'foliation1', and 'foliation2'"
-#                 )
-#         self.foliation_set = foliation_set
-#         self.foliated_intersection_set = foliated_intersection_set
+        for intersection in foliated_intersection_set:
+            # check if intersection contains key 'name', 'foliation1', and 'foliation2'
+            if (
+                "name" not in intersection
+                or "foliation1" not in intersection
+                or "foliation2" not in intersection
+                or "intersection_region_constraints" not in intersection
+            ):
+                raise Exception(
+                    "Each intersection in foliated_intersection_set should contain key 'name', 'foliation1', and 'foliation2'"
+                )
+        
+        # based on the user's implementation, load the foliation and foliated intersection
+        self.foliation_set = {f["name"]: self.load_foliation(f) for f in foliation_set}
+        self.foliated_intersection_set = {i["name"]: self.load_foliated_intersection(i) for i in foliated_intersection_set}
+
+    @abstractmethod
+    def load_foliation(self, foliation):
+        raise NotImplementedError("Please Implement this method")
+
+    @abstractmethod
+    def load_foliated_intersection(self, intersection):
+        raise NotImplementedError("Please Implement this method")
+
+    def get_foliations(self):
+        return self.foliation_set.values()
+
+    def get_foliated_intersections(self):
+        return self.foliated_intersection_set.values()
