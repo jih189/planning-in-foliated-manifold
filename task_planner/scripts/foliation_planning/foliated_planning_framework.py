@@ -98,6 +98,9 @@ class FoliatedPlanningFramework:
         # reset the task planner
         self.task_planner.reset_task_planner()
 
+        # set the intersection sampler to task planner.
+        self.task_planner.set_intersection_sampler(self.intersection_sampler)
+
         # load the foliated problem
         self.task_planner.load_foliated_problem(self.foliated_problem)
 
@@ -113,19 +116,7 @@ class FoliatedPlanningFramework:
 
         for attempt_time in range(self.max_attempt_time):
             # generate the lead sequence
-            manifold_sequence, intersection_sequence = self.task_planner.generate_lead_sequence()
-            print "manifold sequence: ", manifold_sequence # [(foliation_name, co_parameter_index), ...]
-            print "intersection sequence: ", intersection_sequence # [((foliation1_name, co_parameter1_index), (foliation2_name, co_parameter2_index), intersection_detail), ...]
-            
-            # generate configurations on the intersection based on the lead sequence.
-            for intersection in intersection_sequence:
-                self.intersection_sampler.generate_configurations_on_intersection(
-                    self.foliated_problem.get_foliation_with_name(intersection[0][0]),
-                    intersection[0][1],
-                    self.foliated_problem.get_foliation_with_name(intersection[1][0]),
-                    intersection[1][1],
-                    intersection[2]
-                )
+            self.task_planner.generate_lead_sequence()
 
         #     if len(task_sequence) == 0:
         #         return False, None

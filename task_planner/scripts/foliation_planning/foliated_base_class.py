@@ -280,6 +280,8 @@ class Task:
 class BaseTaskPlanner:
     __metaclass__ = ABCMeta
 
+    def set_intersection_sampler(self, intersection_sampler_):
+        self.intersection_sampler = intersection_sampler_
     
     def load_foliated_problem(self, folaited_problem):
         """
@@ -306,7 +308,7 @@ class BaseTaskPlanner:
             )
 
     @abstractmethod
-    def reset_task_planner(self, hard_reset):
+    def reset_task_planner(self):
         # reset the task planner
         raise NotImplementedError("Please Implement this method")
 

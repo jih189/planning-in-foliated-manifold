@@ -70,14 +70,15 @@ class MTGTaskPlanner(BaseTaskPlanner):
             )
 
         # return the edges of the shortest path
-        result = []
         for i in range(len(path) - 1):
-            result.append((
-                path[i],
-                path[i+1],
-                self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"])
+            self.intersection_sampler.generate_configurations_on_intersection(
+                self.foliations_set[path[i][0]],
+                path[i][1],
+                self.foliations_set[path[i+1][0]],
+                path[i+1][1],
+                self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"]
             )
-        return path, result
+        return []
 
     # MTGTaskPlanner
     def update(self, task_graph_info_, plan_, manifold_constraint_):

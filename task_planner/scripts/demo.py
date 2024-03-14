@@ -10,6 +10,8 @@ from foliation_planning.foliated_planning_framework import FoliatedPlanningFrame
 from MTG_task_planner import MTGTaskPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
 
+from moveit_msgs.msg import Constraints, PositionConstraint, OrientationConstraint
+
 if __name__ == "__main__":
     rospy.init_node("demo_node", anonymous=True)
     # Get the path of the desired package
@@ -57,14 +59,32 @@ if __name__ == "__main__":
         "name": "approach_object_slide_object",
         "foliation1": "approach_object",
         "foliation2": "slide_object", 
-        "intersection_detail": "grasp_object_in_start_placement"
+        "intersection_detail": {
+            # "object_constraints": {
+            #     "constraint_pose": np.array([[1,0,0,0.75],
+            #                                 [0,1,0,-0.55],
+            #                                 [0,0,1,0.78],
+            #                                 [0,0,0,1]]),
+            #     "orientation_constraint": [0.001, 0.001, 0.001],
+            #     "position_constraint": [0.001, 0.001, 0.001]
+            # }
+        }
     }
 
     intersection_slide_object_reset_robot = {
         "name": "pour_object_reset_robot",
         "foliation1": "slide_object",
         "foliation2": "reset_robot",
-        "intersection_detail": "release_object_in_end_placement"
+        "intersection_detail": {
+            # "object_constraints": {
+            #     "constraint_pose": np.array([[1,0,0,0.75],
+            #                                 [0,1,0,-0.15],
+            #                                 [0,0,1,0.78],
+            #                                 [0,0,0,1]]),
+            #     "orientation_constraint": [0.001, 0.001, 0.001],
+            #     "position_constraint": [0.001, 0.001, 0.001]
+            # }
+        }
     }
 
     foliation_config = CustomFoliationConfig(
