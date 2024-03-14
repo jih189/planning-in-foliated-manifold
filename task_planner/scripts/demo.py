@@ -11,9 +11,15 @@ from MTG_task_planner import MTGTaskPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
 
 from moveit_msgs.msg import Constraints, PositionConstraint, OrientationConstraint
+from custom_visualizer import MoveitVisualizer
+
+import moveit_commander
 
 if __name__ == "__main__":
     rospy.init_node("demo_node", anonymous=True)
+
+    robot = moveit_commander.RobotCommander()
+
     # Get the path of the desired package
     package_path = rospkg.RosPack().get_path("task_planner")
 
@@ -109,7 +115,7 @@ if __name__ == "__main__":
     task_planner = MTGTaskPlanner()
     foliated_planning_framework.setTaskPlanner(task_planner)
 
-    intersection_sampler = CustomIntersectionSampler()
+    intersection_sampler = CustomIntersectionSampler(robot)
     foliated_planning_framework.setIntersectionSampler(intersection_sampler)
 
     foliated_planning_framework.setFoliatedProblem(foliation_problem)

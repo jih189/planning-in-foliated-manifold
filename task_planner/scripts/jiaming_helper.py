@@ -75,6 +75,19 @@ def convert_joint_values_to_robot_state(joint_values_list_, joint_names_, robot_
     moveit_robot_state.joint_state.position = tuple(position_list)
     return moveit_robot_state
 
+def get_joint_values_from_joint_state(joint_state_, joint_names_):
+    """
+    get joint values from joint state
+    joint_state_: a joint state
+    joint_names_: a list of joint names
+    """
+    joint_values = []
+    for joint_name in joint_names_:
+        joint_values.append(
+            joint_state_.position[joint_state_.name.index(joint_name)]
+        )
+    return joint_values
+
 def get_no_constraint():
     no_constraint = Constraints()
     no_constraint.name = "use_equality_constraints"

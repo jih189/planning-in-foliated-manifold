@@ -1,12 +1,17 @@
+import rospy
 from foliation_planning.foliated_base_class import (
     BaseIntersectionSampler
 )
 
-from jiaming_helper import construct_moveit_constraint
+from jiaming_helper import construct_moveit_constraint, get_joint_values_from_joint_state
+from moveit_msgs.srv import GetJointWithConstraints, GetJointWithConstraintsRequest
+import numpy as np
 
 class CustomIntersectionSampler(BaseIntersectionSampler):
-    def __init__(self):
-        pass
+    def __init__(self, robot):
+        self.robot = robot
+        self.joint_names = self.robot.get_group("arm").get_joints()
+        self.sample_joint_with_constraints_service = rospy.ServiceProxy('/sample_joint_with_constraints', GetJointWithConstraints)
 
     def generate_configurations_on_intersection(self, foliation1, co_parameter_1_index, foliation2, co_parameter_2_index, intersection_detail):
         """
@@ -45,4 +50,30 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
             moveit_constraint = construct_moveit_constraint(grasp, placement, intersection_detail["object_constraints"]["orientation_constraint"], intersection_detail["object_constraints"]["position_constraint"])
         else:
             raise ValueError("The co-parameter type is not supported.")
+        
+        sample_request = GetJointWithConstraintsRequest()
+        sample_request.constraints = moveit_constraint
+        sample_request.group_name = "arm"
+        sample_request.max_sampling_attempt = 5
                 
+        # send constraints to the service
+        response = self.sample_joint_with_constraints_service(sample_request)
+
+        sampled_configurations = np.array([get_joint_values_from_joint_state(s.joint_state, self.joint_names) for s in response.solutions])
+
+        if len(sampled_configurations) > 0:
+            # filter out if two configurations are too close
+            filtered_sampled_configurations = [sampled_configurations[0]]
+            for i in sampled_configurations[1:]:
+                has_close_configuration = False
+                for j in filtered_sampled_configurations:
+                    if np.linalg.norm(i - j) < 0.1:
+                        has_close_configuration = True
+                        break
+                if not has_close_configuration:
+                    filtered_sampled_configurations.append(i)
+
+        else:
+            return []
+
+        return np.array(filtered_sampled_configurations).tolist()
