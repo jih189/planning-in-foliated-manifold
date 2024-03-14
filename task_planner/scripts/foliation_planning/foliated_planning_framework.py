@@ -20,6 +20,13 @@ class FoliatedPlanningFramework:
         self.foliated_problem = foliated_problem
         self.has_new_foliated_problem = True
 
+    def setIntersectionSampler(self, intersection_sampler):
+        """
+        This function sets the intersection sampler to the planning framework.
+        """
+        self.intersection_sampler = intersection_sampler
+        self.has_intersection_sampler = True
+
     def setMotionPlanner(self, motion_planner):
         """
         This function sets the motion planner to the planning framework.
@@ -50,10 +57,10 @@ class FoliatedPlanningFramework:
 
     def setStartAndGoal(
         self,
-        start_foliation_index,
+        start_foliation_name,
         start_co_parameter_index,
         start_configuration,
-        goal_foliation_index,
+        goal_foliation_name,
         goal_co_parameter_index,
         goal_configuration,
     ):
@@ -62,15 +69,16 @@ class FoliatedPlanningFramework:
         Both start and goal manifolds should not be the same.
         """
         if (
-            start_foliation_index == goal_foliation_index
+            start_foliation_name == goal_foliation_name
             and start_co_parameter_index == goal_co_parameter_index
         ):
             raise Exception("Start and goal manifolds should not be the same.")
-        self.start_foliation_index = start_foliation_index
+
+        self.start_foliation_name = start_foliation_name
         self.start_co_parameter_index = start_co_parameter_index
-        self.goal_foliation_index = goal_foliation_index
-        self.goal_co_parameter_index = goal_co_parameter_index
         self.start_configuration = start_configuration
+        self.goal_foliation_name = goal_foliation_name
+        self.goal_co_parameter_index = goal_co_parameter_index        
         self.goal_configuration = goal_configuration
 
     def solve(self):
@@ -84,32 +92,40 @@ class FoliatedPlanningFramework:
         if not self.has_task_planner:
             raise Exception("No task planner is set to the planning framework.")
 
-        if not self.has_motion_planner:
-            raise Exception("No motion planner is set to the planning framework.")
+        # if not self.has_motion_planner:
+        #     raise Exception("No motion planner is set to the planning framework.")
 
         # reset the task planner
-        # self.task_planner.reset_task_planner()
+        self.task_planner.reset_task_planner()
 
         # load the foliated problem
         self.task_planner.load_foliated_problem(self.foliated_problem)
 
         # # set the start and goal
-        # self.task_planner.set_start_and_goal(
-        #     (self.start_foliation_index, self.start_co_parameter_index),
-        #     self.start_configuration,
-        #     (self.goal_foliation_index, self.goal_co_parameter_index),
-        #     self.goal_configuration,
-        # )
+        self.task_planner.set_start_and_goal(
+            self.start_foliation_name, 
+            self.start_co_parameter_index,
+            self.start_configuration,
+            self.goal_foliation_name, 
+            self.goal_co_parameter_index,
+            self.goal_configuration,
+        )
 
-        # for attempt_time in range(self.max_attempt_time):
-        #     print("attempt time: ", attempt_time)
-
-        #     # use lead planner to decide what foliatied intersection to sample
-
-        #     # update the task graph in the task planner.
-
-        #     # generate the task sequence
-        #     task_sequence = self.task_planner.generate_task_sequence()
+        for attempt_time in range(self.max_attempt_time):
+            # generate the lead sequence
+            manifold_sequence, intersection_sequence = self.task_planner.generate_lead_sequence()
+            print "manifold sequence: ", manifold_sequence # [(foliation_name, co_parameter_index), ...]
+            print "intersection sequence: ", intersection_sequence # [((foliation1_name, co_parameter1_index), (foliation2_name, co_parameter2_index), intersection_detail), ...]
+            
+            # generate configurations on the intersection based on the lead sequence.
+            for intersection in intersection_sequence:
+                self.intersection_sampler.generate_configurations_on_intersection(
+                    self.foliated_problem.get_foliation_with_name(intersection[0][0]),
+                    intersection[0][1],
+                    self.foliated_problem.get_foliation_with_name(intersection[1][0]),
+                    intersection[1][1],
+                    intersection[2]
+                )
 
         #     if len(task_sequence) == 0:
         #         return False, None

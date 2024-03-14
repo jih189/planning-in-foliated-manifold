@@ -4,9 +4,11 @@ import rospy
 import rospkg
 
 import numpy as np
-from custom_foliated_class import CustomFoliationConfig
-from foliation_planning.foliated_base_class import FoliatedProblem
+from custom_foliated_class import CustomFoliationConfig, custom_intersection_rule
+from foliation_planning.foliated_base_class import FoliatedProblem, IntersectionRule
 from foliation_planning.foliated_planning_framework import FoliatedPlanningFramework
+from MTG_task_planner import MTGTaskPlanner
+from custom_intersection_sampler import CustomIntersectionSampler
 
 if __name__ == "__main__":
     rospy.init_node("demo_node", anonymous=True)
@@ -27,7 +29,7 @@ if __name__ == "__main__":
     }
 
     grasp_input = np.load(package_path + "/mesh_dir/cup.npz")
-    grasp_set = [grasp_input[g] for g in grasp_input]
+    grasp_set = [grasp_input[g] for g in grasp_input][:20]
 
     foliation_slide_object = {
         "name": "slide_object",
@@ -55,14 +57,14 @@ if __name__ == "__main__":
         "name": "approach_object_slide_object",
         "foliation1": "approach_object",
         "foliation2": "slide_object", 
-        "intersection_region_constraints": "grasp_object_in_start_placement"
+        "intersection_detail": "grasp_object_in_start_placement"
     }
 
     intersection_slide_object_reset_robot = {
         "name": "pour_object_reset_robot",
         "foliation1": "slide_object",
         "foliation2": "reset_robot",
-        "intersection_region_constraints": "release_object_in_end_placement"
+        "intersection_detail": "release_object_in_end_placement"
     }
 
     foliation_config = CustomFoliationConfig(
@@ -76,21 +78,29 @@ if __name__ == "__main__":
         ]
     )
 
-    foliation_problem = FoliatedProblem("sliding_cup_on_desk", foliation_config)
+    foliation_problem = FoliatedProblem(
+        "sliding_cup_on_desk", 
+        foliation_config, 
+        IntersectionRule(custom_intersection_rule)
+    )
     
     foliated_planning_framework = FoliatedPlanningFramework()
 
     task_planner = MTGTaskPlanner()
+    foliated_planning_framework.setTaskPlanner(task_planner)
 
-    foliated_planning_framework.set_task_planner(task_planner)
+    intersection_sampler = CustomIntersectionSampler()
+    foliated_planning_framework.setIntersectionSampler(intersection_sampler)
 
-    foliated_planning_framework.set_foliated_problem(foliation_problem)
+    foliated_planning_framework.setFoliatedProblem(foliation_problem)
 
     foliated_planning_framework.setStartAndGoal(
-        start_foliation_index,
-        start_co_parameter_index,
-        start_configuration,
-        goal_foliation_index,
+        "approach_object",
         0,
-        goal_configuration,
+        [-1.28, 1.51, 0.35, 1.81, 0.0, 1.47, 0.0],
+        "reset_robot",
+        0,
+        [-1.28, 1.51, 0.35, 1.81, 0.0, 1.47, 0.0],
     )
+
+    foliated_planning_framework.solve()

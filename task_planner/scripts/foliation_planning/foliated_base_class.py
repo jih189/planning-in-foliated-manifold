@@ -89,6 +89,28 @@ class BaseFoliation:
             similarity_matrix  # similarity matrix between co-parameters
         )
 
+class IntersectionRule:
+    """
+    User need to provide a intersection rule function to define how two manifolds are intersected.
+    That is, this function will take two foliations and returns a list of pairs of co-parameters from two foliations.
+    """
+    def __init__(self, intersection_rule_function):
+        self.intersection_rule_function = intersection_rule_function
+
+    def find_connected_co_parameters(self, foliation1, foliation2):
+        result = self.intersection_rule_function(foliation1, foliation2)
+        # check if result is a list of tuples
+        if not isinstance(result, list):
+            raise Exception("The result of intersection rule function is not a list")
+        for pair in result:
+            # check if pair is a tuple
+            if not isinstance(pair, tuple):
+                raise Exception("The element in the result of intersection rule function is not a tuple")
+            # check if pair has two elements
+            if pair.__len__() != 2:
+                raise Exception("The element in the result of intersection rule function does not have two elements")
+        return result
+
 class FoliatedIntersection:
     """
         This class represents a foliated intersection.
@@ -100,26 +122,28 @@ class FoliatedIntersection:
     def __init__(
         self,
         name,
-        foliation1,
-        foliation2,
-        intersection_region_constraints
+        foliation1_name,
+        foliation2_name,
+        intersection_detail
     ):
         # Constructor
         self.name = name
-        self.foliation1 = foliation1
-        self.foliation2 = foliation2
-        self.intersection_region_constraints = intersection_region_constraints
+        self.foliation1_name = foliation1_name
+        self.foliation2_name = foliation2_name
+        self.intersection_detail = intersection_detail # the intersection detail is a dictionary which contains the detail of the intersection
+        # that is, it contains the information about how manifolds from foliation1 and foliation2 are intersected. For example, they
+        # can be parallel or crossing structure based on user's implementation.
 
 class BaseIntersectionSampler:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def sample_intersection(self, foliated_intersection):
+    def generate_configurations_on_intersection(self, foliation1, co_parameter_1_index, foliation2, co_parameter_2_index, intersection_detail):
         # sample intersection between two manifolds from foliation1 and foliation2
         raise NotImplementedError("Please Implement this method")
 
 class FoliatedProblem:
-    def __init__(self, problem_name, foliation_configuration):
+    def __init__(self, problem_name, foliation_configuration, intersection_rule):
         """Constructor for FoliatedProblem class"""
         self.problem_name = problem_name  # name of the problem
         
@@ -129,13 +153,13 @@ class FoliatedProblem:
 
         self.foliations = foliation_configuration.get_foliations()  # list of foliations.
         self.foliated_intersections = foliation_configuration.get_foliated_intersections()  # list of foliated intersections.
-        self.intersections = []  # list of intersections, this should be empty initially.
+        self.intersection_rule = intersection_rule  # intersection rule
 
-    def get_foliation_index(self, foliation_name):
-        """Return the index of the foliation"""
-        for i, foliation in enumerate(self.foliations):
+    def get_foliation_with_name(self, foliation_name):
+        """Return the foliation based on the name"""
+        for foliation in self.foliations:
             if foliation.foliation_name == foliation_name:
-                return i
+                return foliation
         raise Exception("The foliation does not exist!!!")
 
 class BaseMotionPlanner:
@@ -252,59 +276,33 @@ class Task:
     def set_task_graph_info(self, task_graph_info_):
         self.task_graph_info = task_graph_info_
 
-class BaseManifold:
-    """
-    BaseManifold contains the detail of a manifold. A manifold is defined by a foliation and a co-parameter.
-    """
-
-    def __init__(self, foliation, co_parameter_index):
-        # Constructor
-        self.foliation = foliation
-        self.co_parameter_index = co_parameter_index
 
 class BaseTaskPlanner:
     __metaclass__ = ABCMeta
 
+    
     def load_foliated_problem(self, folaited_problem):
         """
         load the foliated problem into the task planner
         """
+        self.total_similiarity_table = {}
+        self.foliations_set = {}
+        self.intersection_rule = folaited_problem.intersection_rule
 
-        # add manifolds
-        for foliation_index, foliation in enumerate(folaited_problem.foliations):
-            for co_parameter_index, co_parameter in enumerate(foliation.co_parameters):
-                self.add_manifold(
-                    BaseManifold(foliation, co_parameter_index),
-                    (foliation_index, co_parameter_index),
-                )
+        for foliation in folaited_problem.foliations:
+            # add foliation to the task planner
+            self.foliations_set[foliation.foliation_name] = foliation
+            # add similaity matrix to the task planner
+            self.total_similiarity_table[foliation.foliation_name] = foliation.similarity_matrix
+            # process each mainfold defined by co-parameters in the foliation
+            for co_parameter_index in range(len(foliation.co_parameters)):
+                self.add_manifold(foliation.foliation_name, co_parameter_index)
 
-            # set similarity matrix for each foliation
-            self.set_similarity_matrix(foliation_index, foliation.similarity_matrix)
-
-        # add intersections
-        for intersection in folaited_problem.intersections:
-            (
-                foliation1_name,
-                co_parameter1_index,
-                foliation2_name,
-                co_parameter2_index,
-            ) = intersection.get_foliation_names_and_co_parameter_indexes()
-            (
-                configuration_in_manifold1,
-                configuration_in_manifold2,
-            ) = intersection.get_edge_configurations()
-            # get index of each foliation in the foliation list
-            foliation1_index = folaited_problem.get_foliation_index(foliation1_name)
-            foliation2_index = folaited_problem.get_foliation_index(foliation2_name)
-            self.add_intersection(
-                (foliation1_index, co_parameter1_index),
-                (foliation2_index, co_parameter2_index),
-                IntersectionDetail(
-                    intersection,
-                    configuration_in_manifold1,
-                    configuration_in_manifold2,
-                    False,
-                ),
+        for foliated_intersection in folaited_problem.foliated_intersections:
+            self.add_foliated_intersection(
+                foliated_intersection.foliation1_name,
+                foliated_intersection.foliation2_name,
+                foliated_intersection.intersection_detail
             )
 
     @abstractmethod
@@ -313,23 +311,28 @@ class BaseTaskPlanner:
         raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
-    def add_manifold(self, manifold_info_, manifold_id_):
+    def add_manifold(self, foliation_name, co_parameter_index):
+        """
+        add manifold to the task planner
+        """
         raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
-    def add_intersection(self, manifold_id1_, manifold_id2_, intersection_detail_):
+    def add_foliated_intersection(self, foliation1_name, foliation2_name, intersection_detail):
         """
-        add intersection to the manifold
+        add intersection rule which defines how two foliations are intersected.
         """
         raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
     def set_start_and_goal(
         self,
-        start_manifold_id_,
-        start_intersection_,
-        goal_manifold_id_,
-        goal_intersection_,
+        start_foliation_name_,
+        start_co_parameter_index_,
+        start_configuration_,
+        goal_foliation_name_,
+        goal_co_parameter_index_,
+        goal_configuration_,
     ):
         """
         set start and goal configurations
@@ -338,9 +341,9 @@ class BaseTaskPlanner:
         raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
-    def generate_task_sequence(self):
+    def generate_lead_sequence(self):
         """
-        generate task sequence
+        generate lead sequence
         """
         raise NotImplementedError("Please Implement this method")
 
@@ -350,12 +353,6 @@ class BaseTaskPlanner:
         update task planner
         """
         raise NotImplementedError("Please Implement this method")
-
-    def set_similarity_matrix(self, foliation_id_, similarity_matrix_):
-        """
-        set similarity matrix for a foliation
-        """
-        self.total_similiarity_table[foliation_id_] = similarity_matrix_
 
 class FoliationConfig:
     __metaclass__ = ABCMeta
@@ -378,15 +375,15 @@ class FoliationConfig:
                 "name" not in intersection
                 or "foliation1" not in intersection
                 or "foliation2" not in intersection
-                or "intersection_region_constraints" not in intersection
+                or "intersection_detail" not in intersection
             ):
                 raise Exception(
                     "Each intersection in foliated_intersection_set should contain key 'name', 'foliation1', and 'foliation2'"
                 )
         
         # based on the user's implementation, load the foliation and foliated intersection
-        self.foliation_set = {f["name"]: self.load_foliation(f) for f in foliation_set}
-        self.foliated_intersection_set = {i["name"]: self.load_foliated_intersection(i) for i in foliated_intersection_set}
+        self.foliation_set = [self.load_foliation(f) for f in foliation_set]
+        self.foliated_intersection_set = [self.load_foliated_intersection(i) for i in foliated_intersection_set]
 
     @abstractmethod
     def load_foliation(self, foliation):
@@ -397,7 +394,7 @@ class FoliationConfig:
         raise NotImplementedError("Please Implement this method")
 
     def get_foliations(self):
-        return self.foliation_set.values()
+        return self.foliation_set
 
     def get_foliated_intersections(self):
-        return self.foliated_intersection_set.values()
+        return self.foliated_intersection_set

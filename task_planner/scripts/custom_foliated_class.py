@@ -83,15 +83,35 @@ class CustomFoliationConfig(FoliationConfig):
 
     def load_foliated_intersection(self, intersection):
 
-        try:
-            foliation1 = self.foliation_set[intersection["foliation1"]]
-            foliation2 = self.foliation_set[intersection["foliation2"]]
-        except: # catch dictionary key error
-            print("Error: Foliation not found")
-
         return FoliatedIntersection(
             intersection["name"],
-            foliation1,
-            foliation2,
-            intersection["intersection_region_constraints"]
+            intersection["foliation1"],
+            intersection["foliation2"],
+            intersection["intersection_detail"]
         )
+
+def custom_intersection_rule(foliation1, foliation2):
+    """
+    This function is used to find the connected co-parameter sets between two foliations.
+    When the co-parameter type of the two foliations are the same, the structure between two foliations
+    should be parallel(one to one). When the co-parameter type of the two foliations are different,
+    the structure between two foliations should be cross(many to many).
+    """
+    if foliation1.co_parameter_type == foliation2.co_parameter_type:
+        # check if they have the same co-parameter set
+        if len(foliation1.co_parameters) != len(foliation2.co_parameters):
+            raise ValueError("Foliations must have the same number of co-parameter sets")
+        
+        result = []
+        for i in range(len(foliation1.co_parameters)):
+            if not np.allclose(foliation1.co_parameters[i], foliation2.co_parameters[i]):
+                raise ValueError("Foliations must have the same co-parameter sets")
+            result.append((i, i))
+        return result
+    else:
+        result = []
+        # add edge from each manifold from foliation 1 to each manifold from foliation 2
+        for i in range(len(foliation1.co_parameters)):
+            for j in range(len(foliation2.co_parameters)):
+                result.append((i, j))
+        return result
