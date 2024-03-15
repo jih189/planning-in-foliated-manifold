@@ -4,6 +4,7 @@ from foliation_planning.foliated_base_class import (
 )
 
 from jiaming_helper import construct_moveit_constraint, get_joint_values_from_joint_state
+from custom_foliated_class import CustomIntersection
 from moveit_msgs.srv import GetJointWithConstraints, GetJointWithConstraintsRequest
 import numpy as np
 
@@ -18,6 +19,7 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
         This function samples the intersection action from the foliated intersection.
         """
         moveit_constraint = None
+        intersection_action = None
 
         if foliation1.co_parameter_type != foliation2.co_parameter_type:
             # if one co-parameter is grasp and the other is placement, then the object 
@@ -31,11 +33,13 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
                 co_parameter_grasp_index = co_parameter_1_index
                 foliation_with_placement_co_parameter = foliation2
                 co_parameter_placement_index = co_parameter_2_index
+                intersection_action = "release"
             elif foliation1.co_parameter_type == "placement" and foliation2.co_parameter_type == "grasp":
                 foliation_with_grasp_co_parameter = foliation2
                 co_parameter_grasp_index = co_parameter_2_index
                 foliation_with_placement_co_parameter = foliation1
                 co_parameter_placement_index = co_parameter_1_index
+                intersection_action = "grasp"
             else:
                 raise ValueError("The co-parameter type is not supported.")
             
@@ -48,6 +52,7 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
             grasp = foliation1.co_parameters[co_parameter_1_index]
             placement = intersection_detail["object_constraints"]["constraint_pose"]
             moveit_constraint = construct_moveit_constraint(grasp, placement, intersection_detail["object_constraints"]["orientation_constraint"], intersection_detail["object_constraints"]["position_constraint"])
+            intersection_action = "hold"
         else:
             raise ValueError("The co-parameter type is not supported.")
         
@@ -64,6 +69,15 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
         if len(sampled_configurations) > 0:
             # filter out if two configurations are too close
             filtered_sampled_configurations = [sampled_configurations[0]]
+            sampled_intersection_set = [
+                CustomIntersection(
+                    foliation1.foliation_name,
+                    co_parameter_1_index,
+                    foliation2.foliation_name,
+                    co_parameter_2_index,
+                    (sampled_configurations[0].tolist(), intersection_action)
+                )
+            ]
             for i in sampled_configurations[1:]:
                 has_close_configuration = False
                 for j in filtered_sampled_configurations:
@@ -72,8 +86,15 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
                         break
                 if not has_close_configuration:
                     filtered_sampled_configurations.append(i)
-
+                    sampled_intersection_set.append(
+                        CustomIntersection(
+                            foliation1.foliation_name,
+                            co_parameter_1_index,
+                            foliation2.foliation_name,
+                            co_parameter_2_index,
+                            (i.tolist(), intersection_action)
+                        )
+                    )
+            return sampled_intersection_set
         else:
             return []
-
-        return np.array(filtered_sampled_configurations).tolist()

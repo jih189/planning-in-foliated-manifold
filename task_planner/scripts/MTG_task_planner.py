@@ -69,16 +69,37 @@ class MTGTaskPlanner(BaseTaskPlanner):
             target=(self.goal_foliation_name, self.goal_co_parameter_index)
             )
 
+    # class Task:
+    # def __init__(
+    #     self, foliation_name_, co_parameter_index_, start_configuration_, goal_configurations_, next_motion_, use_atlas_
+    # ):
+    #     # Constructor
+    #     self.foliation_name = foliation_name_
+    #     self.co_parameter_index = co_parameter_index_
+    #     self.goal_configurations = goal_configurations_ # this goal can be a region instead of only one configuration.
+    #     self.next_motion = next_motion_  # the robot motion after the task is completed
+    #     self.related_experience = []
+    #     self.use_atlas = use_atlas_
+
+        result = []
         # return the edges of the shortest path
         for i in range(len(path) - 1):
-            self.intersection_sampler.generate_configurations_on_intersection(
+            sampled_intersections = self.intersection_sampler.generate_configurations_on_intersection(
                 self.foliations_set[path[i][0]],
                 path[i][1],
                 self.foliations_set[path[i+1][0]],
                 path[i+1][1],
                 self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"]
             )
-        return []
+            
+            result.append(Task(
+                path[i][0], 
+                path[i][1],
+                sampled_intersections,
+                False
+            ))
+
+        return result
 
     # MTGTaskPlanner
     def update(self, task_graph_info_, plan_, manifold_constraint_):

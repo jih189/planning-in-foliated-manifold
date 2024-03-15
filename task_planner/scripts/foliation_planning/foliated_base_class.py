@@ -261,21 +261,14 @@ class BaseVisualizer(object):
 
 class Task:
     def __init__(
-        self, manifold_detail_, start_configuration_, goal_configurations_, next_motion_, use_atlas
+        self, foliation_name_, co_parameter_index_, goal_configurations_with_following_action_, use_atlas_
     ):
         # Constructor
-        self.manifold_detail = manifold_detail_
-        self.start_configuration = start_configuration_
-        self.goal_configurations = goal_configurations_ # this goal can be a region instead of only one configuration.
-        self.next_motion = next_motion_  # the robot motion after the task is completed
+        self.foliation_name = foliation_name_
+        self.co_parameter_index = co_parameter_index_
+        self.goal_configurations_with_following_action = goal_configurations_with_following_action_ # a list of configuration with following action
         self.related_experience = []
-        self.use_atlas = use_atlas
-
-    # set which edge of the task graph this task is.
-    # so user can use this information to update the task graph.
-    def set_task_graph_info(self, task_graph_info_):
-        self.task_graph_info = task_graph_info_
-
+        self.use_atlas = use_atlas_
 
 class BaseTaskPlanner:
     __metaclass__ = ABCMeta

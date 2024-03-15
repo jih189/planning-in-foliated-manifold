@@ -42,8 +42,12 @@ class CustomIntersection(BaseIntersection):
     def inverse_action(self):
         if self.intersection_action[1] == "grasp":
             return (self.intersection_action[0], "release")
-        else:
+        elif self.intersection_action[1] == "release":
             return (self.intersection_action[0], "grasp")
+        elif self.intersection_action[1] == "hold":
+            return (self.intersection_action[0], "hold")
+        else:
+            raise ValueError("The intersection action is not supported.")
 
 """
 CustomFoliationConfig class
