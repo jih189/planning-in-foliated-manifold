@@ -188,35 +188,35 @@ class BaseMotionPlanner:
         # Returns a success flag, a motion plan which can be visualized, and an experience which can be used to update the task planner.
         raise NotImplementedError("Please Implement this method")
 
-    def _plan(
-        self,
-        start_configuration,
-        goal_configurations,
-        foliation_constraints,
-        co_parameter,
-        planning_hint,
-        use_atlas,
-    ):
-        """
-        This function must return a success flag, a motion plan, and an experience.
-        """
-        success_flag, task_motion_result, experience, manifold_constraint = self.plan(
-            start_configuration,
-            goal_configurations,
-            foliation_constraints,
-            co_parameter,
-            planning_hint,
-            use_atlas,
-        )
-        if not isinstance(success_flag, bool):
-            raise Exception(
-                "The first return value of plan function is not a boolean value!!!"
-            )
-        if not isinstance(task_motion_result, BaseTaskMotion):
-            raise Exception(
-                "The second return value of plan function is not a BaseTaskMotion class!!!"
-            )
-        return success_flag, task_motion_result, experience, manifold_constraint
+    # def _plan(
+    #     self,
+    #     start_configuration,
+    #     goal_configurations,
+    #     foliation_constraints,
+    #     co_parameter,
+    #     planning_hint,
+    #     use_atlas,
+    # ):
+    #     """
+    #     This function must return a success flag, a motion plan, and an experience.
+    #     """
+    #     success_flag, task_motion_result, experience, manifold_constraint = self.plan(
+    #         start_configuration,
+    #         goal_configurations,
+    #         foliation_constraints,
+    #         co_parameter,
+    #         planning_hint,
+    #         use_atlas,
+    #     )
+    #     if not isinstance(success_flag, bool):
+    #         raise Exception(
+    #             "The first return value of plan function is not a boolean value!!!"
+    #         )
+    #     if not isinstance(task_motion_result, BaseTaskMotion):
+    #         raise Exception(
+    #             "The second return value of plan function is not a BaseTaskMotion class!!!"
+    #         )
+    #     return success_flag, task_motion_result, experience, manifold_constraint
 
     @abstractmethod
     def shutdown_planner(self):
@@ -266,14 +266,15 @@ class BaseVisualizer(object):
 
 class Task:
     def __init__(
-        self, foliation_name_, co_parameter_index_, goal_configurations_with_following_action_, use_atlas_
+        self, foliation_constraints_, co_parameter_, related_experience_, goal_configurations_with_following_action_, use_atlas_
     ):
         # Constructor
-        self.foliation_name = foliation_name_
-        self.co_parameter_index = co_parameter_index_
+        self.foliation_constraints = foliation_constraints_
+        self.co_parameter = co_parameter_
         self.goal_configurations_with_following_action = goal_configurations_with_following_action_ # a list of configuration with following action
         self.related_experience = []
         self.use_atlas = use_atlas_
+        self.related_experience = related_experience_
 
 class BaseTaskPlanner:
     __metaclass__ = ABCMeta

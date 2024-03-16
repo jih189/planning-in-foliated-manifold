@@ -80,8 +80,6 @@ class MTGTaskPlanner(BaseTaskPlanner):
                 weight="weight"
                 )
 
-            print "step ", step, "path: ", path
-
             result = []
 
             # return the edges of the shortest path
@@ -102,13 +100,13 @@ class MTGTaskPlanner(BaseTaskPlanner):
                         path[i+1][1],
                         10.0
                     )
-                    print "fail between ", path[i], " and ", path[i+1]
                     found_lead = False
                     break
                 
                 result.append(Task(
-                    path[i][0], 
-                    path[i][1],
+                    self.foliations_set[path[i][0]].constraint_parameters, 
+                    self.foliations_set[path[i][0]].co_parameters[path[i][1]],
+                    [],
                     sampled_intersections,
                     False
                 ))
@@ -126,8 +124,9 @@ class MTGTaskPlanner(BaseTaskPlanner):
                 continue
 
             result.append(Task(
-                path[-1][0],
-                path[-1][1],
+                self.foliations_set[path[-1][0]].constraint_parameters, 
+                self.foliations_set[path[-1][0]].co_parameters[path[-1][1]],
+                [],
                 self.intersection_sampler.generate_final_configuration(self.foliations_set[path[-1][0]], path[-1][1], self.goal_configuration),
                 False
             ))

@@ -113,17 +113,25 @@ class FoliatedPlanningFramework:
             self.goal_configuration,
         )
 
+        current_start_configuration = self.start_configuration
+
         for attempt_time in range(self.max_attempt_time):
             # generate the lead sequence
             lead_sequence = self.task_planner.generate_lead_sequence()
-            for t in lead_sequence:
-                print "----------", t.foliation_name, t.co_parameter_index
-                print "goal configurations with following action:"
-                for s in t.goal_configurations_with_following_action:
-                    print s.intersection_action
 
-        #     if len(task_sequence) == 0:
-        #         return False, None
+            if len(lead_sequence) == 0:
+                return False, None
+
+            first_task_in_lead_sequence = lead_sequence[0]
+            
+            self.motion_planner.plan(
+                current_start_configuration,
+                [i.intersection_action[0] for i in first_task_in_lead_sequence.goal_configurations_with_following_action],
+                first_task_in_lead_sequence.foliation_constraints,
+                first_task_in_lead_sequence.co_parameter,
+                first_task_in_lead_sequence.related_experience,
+                first_task_in_lead_sequence.use_atlas,
+            )
 
         #     list_of_motion_plan = []
         #     found_solution = True

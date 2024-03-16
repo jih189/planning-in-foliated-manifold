@@ -18,6 +18,10 @@ from custom_visualizer import MoveitVisualizer
 if __name__ == "__main__":
     rospy.init_node("demo_node", anonymous=True)
 
+    table_top_pose = np.array(
+        [[1, 0, 0, 0.5], [0, 1, 0, 0], [0, 0, 1, 0.78], [0, 0, 0, 1]]
+    )
+
     # Get the path of the desired package
     package_path = rospkg.RosPack().get_path("task_planner")
 
@@ -51,7 +55,12 @@ if __name__ == "__main__":
         "name": "slide_object",
         "co-parameter-type": "grasp",
         "object_mesh": "cup",
-        "object_constraints": "slide",
+        "object_constraints": {
+            "frame_id": "base_link",
+            "reference_pose": table_top_pose,
+            "orientation_tolerance": [0.001, 0.001, 0.001],
+            "position_tolerance": np.array([2000, 2000, 0.0008]),
+        },
         "co-parameter-set": grasp_inv_set,
         "similarity-matrix": foliation_slide_object_similarity_matrix
     }
