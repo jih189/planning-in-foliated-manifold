@@ -32,7 +32,6 @@ class FoliatedPlanningFramework:
         This function sets the motion planner to the planning framework.
         """
         self.motion_planner = motion_planner
-        self.motion_planner.prepare_planner()
         self.has_motion_planner = True
 
     def setTaskPlanner(self, task_planner):

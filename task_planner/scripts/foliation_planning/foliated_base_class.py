@@ -170,10 +170,10 @@ class FoliatedProblem:
 class BaseMotionPlanner:
     __metaclass__ = ABCMeta
 
-    @abstractmethod
-    def prepare_planner(self):
-        # Prepares the planner
-        raise NotImplementedError("Please Implement this method")
+    # @abstractmethod
+    # def prepare_planner(self):
+    #     # Prepares the planner
+    #     raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
     def plan(

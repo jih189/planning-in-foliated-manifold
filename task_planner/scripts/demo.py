@@ -8,18 +8,15 @@ from custom_foliated_class import CustomFoliationConfig, custom_intersection_rul
 from foliation_planning.foliated_base_class import FoliatedProblem, IntersectionRule
 from foliation_planning.foliated_planning_framework import FoliatedPlanningFramework
 from MTG_task_planner import MTGTaskPlanner
+from jiaming_motion_planner import MoveitMotionPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
 from jiaming_helper import generate_similarity_matrix
 
 from moveit_msgs.msg import Constraints, PositionConstraint, OrientationConstraint
 from custom_visualizer import MoveitVisualizer
 
-import moveit_commander
-
 if __name__ == "__main__":
     rospy.init_node("demo_node", anonymous=True)
-
-    robot = moveit_commander.RobotCommander()
 
     # Get the path of the desired package
     package_path = rospkg.RosPack().get_path("task_planner")
@@ -126,8 +123,12 @@ if __name__ == "__main__":
     task_planner = MTGTaskPlanner()
     foliated_planning_framework.setTaskPlanner(task_planner)
 
-    intersection_sampler = CustomIntersectionSampler(robot)
+    motion_planner = MoveitMotionPlanner()
+
+    intersection_sampler = CustomIntersectionSampler(motion_planner.robot)
     foliated_planning_framework.setIntersectionSampler(intersection_sampler)
+
+    foliated_planning_framework.setMotionPlanner(motion_planner)
 
     foliated_planning_framework.setFoliatedProblem(foliation_problem)
 
