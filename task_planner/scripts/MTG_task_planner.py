@@ -65,7 +65,7 @@ class MTGTaskPlanner(BaseTaskPlanner):
     def generate_lead_sequence(self):
 
         found_lead = True
-        for step in range(10):
+        for step in range(100):
             found_lead = True
 
             # check if there is a path between the start and the goal
@@ -102,6 +102,7 @@ class MTGTaskPlanner(BaseTaskPlanner):
                         path[i+1][1],
                         10.0
                     )
+                    print "fail between ", path[i], " and ", path[i+1]
                     found_lead = False
                     break
                 

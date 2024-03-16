@@ -48,13 +48,14 @@ if __name__ == "__main__":
         return np.linalg.norm(pose_1_[:3, 3] - pose_2_[:3, 3])
 
     foliation_slide_object_similarity_matrix = generate_similarity_matrix(grasp_set, get_position_difference_between_poses)
+    grasp_inv_set = [np.linalg.inv(g) for g in grasp_set]
 
     foliation_slide_object = {
         "name": "slide_object",
         "co-parameter-type": "grasp",
         "object_mesh": "cup",
         "object_constraints": "slide",
-        "co-parameter-set": grasp_set,
+        "co-parameter-set": grasp_inv_set,
         "similarity-matrix": foliation_slide_object_similarity_matrix
     }
 
