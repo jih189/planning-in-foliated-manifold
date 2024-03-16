@@ -41,7 +41,7 @@ class MTGTaskPlanner(BaseTaskPlanner):
 
         self.transition_maps[(foliation1_name, foliation2_name)] = []
         for i, j in transition_pairs:
-            self.mode_transition_graph.add_edge((foliation1_name, i), (foliation2_name, j), intersection_detail=intersection_detail)
+            self.mode_transition_graph.add_edge((foliation1_name, i), (foliation2_name, j), intersection_detail=intersection_detail, weight=0.0)
             self.transition_maps[(foliation1_name, foliation2_name)].append(((foliation1_name, i), (foliation2_name, j)))
 
     # MTGTaskPlanner
@@ -63,43 +63,93 @@ class MTGTaskPlanner(BaseTaskPlanner):
 
     # MTGTaskPlanner
     def generate_lead_sequence(self):
-        path = nx.shortest_path(
-            self.mode_transition_graph, 
-            source=(self.start_foliation_name, self.start_co_parameter_index),
-            target=(self.goal_foliation_name, self.goal_co_parameter_index)
-            )
 
-    # class Task:
-    # def __init__(
-    #     self, foliation_name_, co_parameter_index_, start_configuration_, goal_configurations_, next_motion_, use_atlas_
-    # ):
-    #     # Constructor
-    #     self.foliation_name = foliation_name_
-    #     self.co_parameter_index = co_parameter_index_
-    #     self.goal_configurations = goal_configurations_ # this goal can be a region instead of only one configuration.
-    #     self.next_motion = next_motion_  # the robot motion after the task is completed
-    #     self.related_experience = []
-    #     self.use_atlas = use_atlas_
+        found_lead = True
+        for step in range(10):
+            found_lead = True
 
-        result = []
-        # return the edges of the shortest path
-        for i in range(len(path) - 1):
-            sampled_intersections = self.intersection_sampler.generate_configurations_on_intersection(
-                self.foliations_set[path[i][0]],
-                path[i][1],
-                self.foliations_set[path[i+1][0]],
-                path[i+1][1],
-                self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"]
-            )
-            
+            # check if there is a path between the start and the goal
+            if not nx.has_path(self.mode_transition_graph, (self.start_foliation_name, self.start_co_parameter_index), (self.goal_foliation_name, self.goal_co_parameter_index)):
+                return []
+
+            # seach for lead sequence
+            path = nx.shortest_path(
+                self.mode_transition_graph, 
+                source=(self.start_foliation_name, self.start_co_parameter_index),
+                target=(self.goal_foliation_name, self.goal_co_parameter_index),
+                weight="weight"
+                )
+
+            print "step ", step, "path: ", path
+
+            result = []
+
+            # return the edges of the shortest path
+            for i in range(len(path) - 1):
+                sampled_intersections = self.intersection_sampler.generate_configurations_on_intersection(
+                    self.foliations_set[path[i][0]],
+                    path[i][1],
+                    self.foliations_set[path[i+1][0]],
+                    path[i+1][1],
+                    self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"]
+                )
+
+                if len(sampled_intersections) == 0:
+                    self.add_penalty(
+                        path[i][0],
+                        path[i][1],
+                        path[i+1][0],
+                        path[i+1][1],
+                        10.0
+                    )
+                    found_lead = False
+                    break
+                
+                result.append(Task(
+                    path[i][0], 
+                    path[i][1],
+                    sampled_intersections,
+                    False
+                ))
+
+                # add penalty to the edge
+                self.add_penalty(
+                    path[i][0],
+                    path[i][1],
+                    path[i+1][0],
+                    path[i+1][1],
+                    0.1
+                )
+
+            if not found_lead:
+                continue
+
             result.append(Task(
-                path[i][0], 
-                path[i][1],
-                sampled_intersections,
+                path[-1][0],
+                path[-1][1],
+                self.intersection_sampler.generate_final_configuration(self.foliations_set[path[-1][0]], path[-1][1], self.goal_configuration),
                 False
             ))
 
+            break
+        
+        if not found_lead:
+            return []
+
         return result
+
+    def add_penalty(self, foliation_1, manifold_1_index, foliation_2, manifold_2_index, penalty):
+        '''
+        Add penalty to the edge between two manifolds.
+        '''
+
+        manifolds_from_first_foliation = self.manifolds_in_foliation[foliation_1]
+        manifolds_from_second_foliation = self.manifolds_in_foliation[foliation_2]
+
+        for i in range(len(manifolds_from_first_foliation)):
+            for j in range(len(manifolds_from_second_foliation)):
+                self.mode_transition_graph[manifolds_from_first_foliation[i]][manifolds_from_second_foliation[j]]["weight"] += \
+                    penalty * self.total_similiarity_table[foliation_1][manifold_1_index][i] * self.total_similiarity_table[foliation_2][manifold_2_index][j]
 
     # MTGTaskPlanner
     def update(self, task_graph_info_, plan_, manifold_constraint_):

@@ -9,6 +9,7 @@ from foliation_planning.foliated_base_class import FoliatedProblem, Intersection
 from foliation_planning.foliated_planning_framework import FoliatedPlanningFramework
 from MTG_task_planner import MTGTaskPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
+from jiaming_helper import generate_similarity_matrix
 
 from moveit_msgs.msg import Constraints, PositionConstraint, OrientationConstraint
 from custom_visualizer import MoveitVisualizer
@@ -37,7 +38,16 @@ if __name__ == "__main__":
     }
 
     grasp_input = np.load(package_path + "/mesh_dir/cup.npz")
-    grasp_set = [grasp_input[g] for g in grasp_input][:20]
+    grasp_set = [grasp_input[g] for g in grasp_input][:100]
+
+    def get_position_difference_between_poses(pose_1_, pose_2_):
+        """
+        Get the position difference between two poses.
+        pose_1_ and pose_2_ are both 4x4 numpy matrices.
+        """
+        return np.linalg.norm(pose_1_[:3, 3] - pose_2_[:3, 3])
+
+    foliation_slide_object_similarity_matrix = generate_similarity_matrix(grasp_set, get_position_difference_between_poses)
 
     foliation_slide_object = {
         "name": "slide_object",
@@ -45,7 +55,7 @@ if __name__ == "__main__":
         "object_mesh": "cup",
         "object_constraints": "slide",
         "co-parameter-set": grasp_set,
-        "similarity-matrix": np.identity(len(grasp_set))
+        "similarity-matrix": foliation_slide_object_similarity_matrix
     }
 
     foliation_reset_robot = {

@@ -341,7 +341,7 @@ def generate_similarity_matrix(configuration_list, difference_function):
     for i in range(len(configuration_list)):
         for j in range(len(configuration_list)):
             similarity_matrix[i, j] = gaussian_similarity(
-                different_matrix[i, j], max_distance, sigma=0.1
+                different_matrix[i, j], max_distance, sigma=0.01
             )
     return similarity_matrix
 

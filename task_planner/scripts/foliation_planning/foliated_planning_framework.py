@@ -116,7 +116,12 @@ class FoliatedPlanningFramework:
 
         for attempt_time in range(self.max_attempt_time):
             # generate the lead sequence
-            self.task_planner.generate_lead_sequence()
+            lead_sequence = self.task_planner.generate_lead_sequence()
+            for t in lead_sequence:
+                print "----------", t.foliation_name, t.co_parameter_index
+                print "goal configurations with following action:"
+                for s in t.goal_configurations_with_following_action:
+                    print s.intersection_action
 
         #     if len(task_sequence) == 0:
         #         return False, None

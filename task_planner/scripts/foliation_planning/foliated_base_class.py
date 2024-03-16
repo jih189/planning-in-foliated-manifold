@@ -138,6 +138,11 @@ class BaseIntersectionSampler:
     __metaclass__ = ABCMeta
 
     @abstractmethod
+    def generate_final_configuration(self, foliation, co_parameter_index, goal_configuration):
+        # sample final configuration from the manifold
+        raise NotImplementedError("Please Implement this method")
+
+    @abstractmethod
     def generate_configurations_on_intersection(self, foliation1, co_parameter_1_index, foliation2, co_parameter_2_index, intersection_detail):
         # sample intersection between two manifolds from foliation1 and foliation2
         raise NotImplementedError("Please Implement this method")

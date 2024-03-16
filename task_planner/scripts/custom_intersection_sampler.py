@@ -14,6 +14,18 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
         self.joint_names = self.robot.get_group("arm").get_joints()
         self.sample_joint_with_constraints_service = rospy.ServiceProxy('/sample_joint_with_constraints', GetJointWithConstraints)
 
+    def generate_final_configuration(self, foliation, co_parameter_index, goal_configuration):
+        """
+        This function will generate a base intersection for the goal detail.
+        """
+        return [CustomIntersection(
+            foliation.foliation_name,
+            co_parameter_index,
+            foliation.foliation_name,
+            co_parameter_index,
+            (goal_configuration, "done")
+        )]
+
     def generate_configurations_on_intersection(self, foliation1, co_parameter_1_index, foliation2, co_parameter_2_index, intersection_detail):
         """
         This function samples the intersection action from the foliated intersection.
