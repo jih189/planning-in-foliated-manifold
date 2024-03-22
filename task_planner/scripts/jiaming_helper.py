@@ -35,7 +35,7 @@ INIT_JOINT_NAMES = [
         "l_gripper_finger_joint",
         "r_gripper_finger_joint",
     ]
-INIT_JOINT_POSITIONS = [0.38, -1.28, 1.52, 0.35, 1.81, 1.47, 0.04, 0.04]
+INIT_JOINT_POSITIONS = [0.3, -1.28, 1.52, 0.35, 1.81, 1.47, 0.04, 0.04]
 #####################################################################
 
 # convert a list of joint values to robotTrajectory

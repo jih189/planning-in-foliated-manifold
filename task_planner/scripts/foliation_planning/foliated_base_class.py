@@ -342,14 +342,14 @@ class BaseTaskPlanner:
         raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
-    def generate_lead_sequence(self):
+    def generate_lead_sequence(self, current_start_configuration, current_foliation_name, current_co_parameter_index):
         """
         generate lead sequence
         """
         raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
-    def update(self, task_graph_info_, plan_, manifold_constraint_):
+    def update(self, mode_transition_, success_flag_, motion_plan_result_, planning_experience_, manifold_constraint_):
         """
         update task planner
         """

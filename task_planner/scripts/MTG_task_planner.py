@@ -62,20 +62,20 @@ class MTGTaskPlanner(BaseTaskPlanner):
         self.goal_configuration = goal_configuration_
 
     # MTGTaskPlanner
-    def generate_lead_sequence(self):
+    def generate_lead_sequence(self, current_start_configuration, current_foliation_name, current_co_parameter_index):
 
         found_lead = True
         for step in range(100):
             found_lead = True
 
             # check if there is a path between the start and the goal
-            if not nx.has_path(self.mode_transition_graph, (self.start_foliation_name, self.start_co_parameter_index), (self.goal_foliation_name, self.goal_co_parameter_index)):
+            if not nx.has_path(self.mode_transition_graph, (current_foliation_name, current_co_parameter_index), (self.goal_foliation_name, self.goal_co_parameter_index)):
                 return []
 
             # seach for lead sequence
             path = nx.shortest_path(
                 self.mode_transition_graph, 
-                source=(self.start_foliation_name, self.start_co_parameter_index),
+                source=(current_foliation_name, current_co_parameter_index),
                 target=(self.goal_foliation_name, self.goal_co_parameter_index),
                 weight="weight"
                 )
@@ -103,13 +103,13 @@ class MTGTaskPlanner(BaseTaskPlanner):
                     found_lead = False
                     break
                 
-                result.append(Task(
+                result.append((Task(
                     self.foliations_set[path[i][0]].constraint_parameters, 
                     self.foliations_set[path[i][0]].co_parameters[path[i][1]],
                     [],
                     sampled_intersections,
                     False
-                ))
+                ), (path[i][0], path[i][1], path[i+1][0], path[i+1][1])))
 
                 # add penalty to the edge
                 self.add_penalty(
@@ -123,13 +123,13 @@ class MTGTaskPlanner(BaseTaskPlanner):
             if not found_lead:
                 continue
 
-            result.append(Task(
+            result.append((Task(
                 self.foliations_set[path[-1][0]].constraint_parameters, 
                 self.foliations_set[path[-1][0]].co_parameters[path[-1][1]],
                 [],
                 self.intersection_sampler.generate_final_configuration(self.foliations_set[path[-1][0]], path[-1][1], self.goal_configuration),
                 False
-            ))
+            ), None))
 
             break
         
@@ -152,7 +152,23 @@ class MTGTaskPlanner(BaseTaskPlanner):
                     penalty * self.total_similiarity_table[foliation_1][manifold_1_index][i] * self.total_similiarity_table[foliation_2][manifold_2_index][j]
 
     # MTGTaskPlanner
-    def update(self, task_graph_info_, plan_, manifold_constraint_):
+    def update(self, mode_transition, success_flag, motion_plan_result, experience, manifold_constraint):
         # if current task is faled to solve, then we can increate the weight of the edge which is similar to the current task.
         # the similarity is defined as the product of the similarity of the previous manifold, the next manifold, and the current similarity.
-        pass
+        
+        if success_flag:
+            self.add_penalty(
+                mode_transition[0],
+                mode_transition[1],
+                mode_transition[2],
+                mode_transition[3],
+                0.1
+            )
+        else:
+            self.add_penalty(
+                mode_transition[0],
+                mode_transition[1],
+                mode_transition[2],
+                mode_transition[3],
+                10.0
+            )

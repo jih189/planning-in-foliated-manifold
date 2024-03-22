@@ -29,6 +29,8 @@ from jiaming_helper import (
     get_no_constraint,
     construct_moveit_constraint,
     make_mesh,
+    INIT_JOINT_NAMES, 
+    INIT_JOINT_POSITIONS
 )
 from foliation_planning.foliated_base_class import BaseMotionPlanner
 
@@ -55,17 +57,8 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         # Create a JointState message
         joint_state = JointState()
         joint_state.header.stamp = rospy.Time.now()
-        joint_state.name = [
-            "torso_lift_joint",
-            "shoulder_pan_joint",
-            "shoulder_lift_joint",
-            "upperarm_roll_joint",
-            "elbow_flex_joint",
-            "wrist_flex_joint",
-            "l_gripper_finger_joint",
-            "r_gripper_finger_joint",
-        ]
-        joint_state.position = [0.1, -1.28, 1.52, 0.35, 1.81, 1.47, 0.04, 0.04]
+        joint_state.name = INIT_JOINT_NAMES
+        joint_state.position = INIT_JOINT_POSITIONS
 
         rate = rospy.Rate(10)
         while (
@@ -108,9 +101,9 @@ class MoveitMotionPlanner(BaseMotionPlanner):
             # need to add the constraint
             manifold_constraint = construct_moveit_constraint(
                 co_parameter,
-                foliation_constraints["reference_pose"],
-                foliation_constraints["orientation_tolerance"],
-                foliation_constraints["position_tolerance"],
+                foliation_constraints["object_constraints"]["reference_pose"],
+                foliation_constraints["object_constraints"]["orientation_tolerance"],
+                foliation_constraints["object_constraints"]["position_tolerance"],
             )
             self.move_group.set_in_hand_pose(msgify(Pose, co_parameter))
         else:
@@ -118,19 +111,21 @@ class MoveitMotionPlanner(BaseMotionPlanner):
 
         self.move_group.set_path_constraints(manifold_constraint)
 
-        # # set the start configuration
-        # self.move_group.set_start_state(start_moveit_robot_state)
-        # self.move_group.set_joint_value_target(goal_configuration)
+        # set the start configuration
+        self.move_group.set_start_state(start_moveit_robot_state)
+        # set the goal configurations
+        self.move_group.set_multi_target_robot_state(goal_configurations)
 
-        # motion_plan_result = self.move_group.plan()
+        motion_plan_result = self.move_group.plan()
 
-        # # the section returned value should be a BaseTaskMotion
-        # return (
-        #     motion_plan_result[0],
-        #     None,
-        #     motion_plan_result,
-        #     manifold_constraint,
-        # )
+        # the section returned value should be a BaseTaskMotion
+        return (
+            motion_plan_result[0], # success flag
+            motion_plan_result, # motion plan result
+            None, # experience
+            manifold_constraint, # manifold constraint
+            motion_plan_result[1].joint_trajectory.points[-1].positions # last configuration
+        )
 
     def shutdown_planner(self):
         moveit_commander.roscpp_shutdown()

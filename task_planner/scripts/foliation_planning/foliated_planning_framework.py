@@ -8,7 +8,7 @@ class FoliatedPlanningFramework:
     """
 
     def __init__(self):
-        self.max_attempt_time = 1
+        self.max_attempt_time = 10
         self.has_visualizer = False
         self.has_task_planner = False
         self.has_motion_planner = False
@@ -91,8 +91,8 @@ class FoliatedPlanningFramework:
         if not self.has_task_planner:
             raise Exception("No task planner is set to the planning framework.")
 
-        # if not self.has_motion_planner:
-        #     raise Exception("No motion planner is set to the planning framework.")
+        if not self.has_motion_planner:
+            raise Exception("No motion planner is set to the planning framework.")
 
         # reset the task planner
         self.task_planner.reset_task_planner()
@@ -113,18 +113,35 @@ class FoliatedPlanningFramework:
             self.goal_configuration,
         )
 
+        current_foliation_name = self.start_foliation_name
+        current_co_parameter_index = self.start_co_parameter_index
         current_start_configuration = self.start_configuration
+        current_solution_trajectory = []
+        found_solution = False
 
         for attempt_time in range(self.max_attempt_time):
-            # generate the lead sequence
-            lead_sequence = self.task_planner.generate_lead_sequence()
+            # generate the lead sequence which is a list of task with mode transition.
+            lead_sequence = self.task_planner.generate_lead_sequence(
+                    current_start_configuration, 
+                    current_foliation_name, 
+                    current_co_parameter_index
+                )
 
             if len(lead_sequence) == 0:
-                return False, None
+                # if the lead sequence is empty, it means that there is no solution.
+                return []
 
-            first_task_in_lead_sequence = lead_sequence[0]
-            
-            self.motion_planner.plan(
+            first_task_in_lead_sequence = lead_sequence[0][0]
+            first_mode_transition_in_sequence = lead_sequence[0][1]
+
+            # plan the motion
+            (
+                success_flag,
+                motion_plan_result,
+                experience,
+                manifold_constraint,
+                last_configuration, # last configuration of the planned motion.
+            ) = self.motion_planner.plan(
                 current_start_configuration,
                 [i.intersection_action[0] for i in first_task_in_lead_sequence.goal_configurations_with_following_action],
                 first_task_in_lead_sequence.foliation_constraints,
@@ -133,46 +150,36 @@ class FoliatedPlanningFramework:
                 first_task_in_lead_sequence.use_atlas,
             )
 
-        #     list_of_motion_plan = []
-        #     found_solution = True
+            if first_mode_transition_in_sequence is None: # this is the last motion planning task.
+                if success_flag:
+                    # if the solution is found, then we can return the result.
+                    current_solution_trajectory.append(motion_plan_result)
+                    found_solution = True
+                    return current_solution_trajectory
 
-        #     # solve the problem
-        #     for task_index, task in enumerate(task_sequence):
-        #         # plan the motion
-        #         (
-        #             success_flag,
-        #             motion_plan_result,
-        #             experience,
-        #             manifold_constraint,
-        #         ) = self.motion_planner._plan(
-        #             task.start_configuration,
-        #             task.goal_configuration,
-        #             task.manifold_detail.foliation.constraint_parameters,
-        #             task.manifold_detail.foliation.co_parameters[
-        #                 task.manifold_detail.co_parameter_index
-        #             ],
-        #             task.related_experience,
-        #             task.use_atlas,
-        #         )
-
-        #         self.task_planner.update(
-        #             task.task_graph_info, experience, manifold_constraint
-        #         )
-
-        #         if success_flag:
-        #             list_of_motion_plan.append(motion_plan_result)
-        #             # add the intersection action to the list of motion plan
-        #             list_of_motion_plan.append(task.next_motion.get_task_motion())
-        #         else:
-        #             found_solution = False
-        #             break
-
-        #     if not found_solution:
-        #         continue
-        #     else:
-        #         return True, list_of_motion_plan
-
-        # return False, None
+            # update the task planner based on the result from motion planner.
+            self.task_planner.update(
+                first_mode_transition_in_sequence,
+                success_flag,
+                motion_plan_result,
+                experience,
+                manifold_constraint,
+            )
+            
+            if success_flag:
+                # if the motion planning is successful, then we can append the result to the current solution trajectory.
+                current_solution_trajectory.append(motion_plan_result)
+                current_foliation_name = first_mode_transition_in_sequence[2]
+                current_co_parameter_index = first_mode_transition_in_sequence[3]
+                current_start_configuration = last_configuration
+            else:
+                # if the motion planning is failed, then we need to replan the motion.
+                current_solution_trajectory = []
+                current_foliation_name = self.start_foliation_name
+                current_co_parameter_index = self.start_co_parameter_index
+                current_start_configuration = self.start_configuration
+        
+        return []
 
     def shutdown(self):
         """
