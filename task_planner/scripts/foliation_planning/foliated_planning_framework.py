@@ -1,6 +1,5 @@
 import time
 
-
 class FoliatedPlanningFramework:
     """
     This class implements the foliated planning framework. In this class, the framework will call both task planner
@@ -9,7 +8,6 @@ class FoliatedPlanningFramework:
 
     def __init__(self):
         self.max_attempt_time = 10
-        self.has_visualizer = False
         self.has_task_planner = False
         self.has_motion_planner = False
 
@@ -40,13 +38,6 @@ class FoliatedPlanningFramework:
         """
         self.task_planner = task_planner
         self.has_task_planner = True
-
-    def setVisualizer(self, visualizer):
-        """
-        This function sets the visualizer to the planning framework.
-        """
-        self.visualizer = visualizer
-        self.has_visualizer = True
 
     def setMaxAttemptTime(self, max_attempt_time=10):
         """
@@ -165,7 +156,7 @@ class FoliatedPlanningFramework:
                 experience,
                 manifold_constraint,
             )
-            
+
             if success_flag:
                 # if the motion planning is successful, then we can append the result to the current solution trajectory.
                 current_solution_trajectory.append(motion_plan_result)

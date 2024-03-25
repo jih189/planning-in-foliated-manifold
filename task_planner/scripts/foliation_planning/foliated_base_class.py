@@ -242,11 +242,11 @@ class BaseTaskMotion:
         # the visualizer to visualize the motion plan.
         raise NotImplementedError("Please Implement this method")
 
-    @abstractmethod
-    def cost(self):
-        # user has to implement this function properly based on how they use
-        # define the cost of the motion plan.
-        raise NotImplementedError("Please Implement this method")
+    # @abstractmethod
+    # def cost(self):
+    #     # user has to implement this function properly based on how they use
+    #     # define the cost of the motion plan.
+    #     raise NotImplementedError("Please Implement this method")
 
 class BaseVisualizer(object):
     __metaclass__ = ABCMeta

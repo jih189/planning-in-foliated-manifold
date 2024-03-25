@@ -33,6 +33,7 @@ from jiaming_helper import (
     INIT_JOINT_POSITIONS
 )
 from foliation_planning.foliated_base_class import BaseMotionPlanner
+from custom_foliated_class import CustomTaskMotion
 
 
 class MoveitMotionPlanner(BaseMotionPlanner):
@@ -48,6 +49,7 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         self.move_group.set_planner_id("CDISTRIBUTIONRRTConfigDefault")
         # self.move_group.set_planner_id('RRTConnectkConfigDefault')
         self.move_group.set_planning_time(1.0)
+        self.active_joints = self.move_group.get_active_joints()
 
         # set initial joint state
         joint_state_publisher = rospy.Publisher(
@@ -86,7 +88,7 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         self.move_group.clear_distribution()
 
         start_moveit_robot_state = convert_joint_values_to_robot_state(
-            start_configuration, self.move_group.get_active_joints(), self.robot
+            start_configuration, self.active_joints, self.robot
         )
 
         distribution_sequence = []
@@ -119,9 +121,18 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         motion_plan_result = self.move_group.plan()
 
         # the section returned value should be a BaseTaskMotion
+        generated_task_motion = CustomTaskMotion(
+            motion_plan_result[1],
+            "object_constraints" in foliation_constraints,
+            None,
+            None,
+            None,
+            None,
+        )
+
         return (
             motion_plan_result[0], # success flag
-            motion_plan_result, # motion plan result
+            generated_task_motion, # motion plan result
             None, # experience
             manifold_constraint, # manifold constraint
             motion_plan_result[1].joint_trajectory.points[-1].positions # last configuration

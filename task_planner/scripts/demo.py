@@ -175,9 +175,18 @@ if __name__ == "__main__":
         [-1.28, 1.51, 0.35, 1.81, 0.0, 1.47, 0.0],
     )
 
-    foliated_planning_framework.solve()
+    planned_solution = foliated_planning_framework.solve()
 
-    # while not rospy.is_shutdown():
-    #     rospy.sleep(0.1)
+    print("length of planned solution")
+    print(len(planned_solution))
 
-    #     problem_publisher.publish(marker_array)
+    if len(planned_solution) > 0:
+        print("Planned solution is found.")
+        visualizer = MoveitVisualizer()
+        visualizer.prepare_visualizer(
+            motion_planner.active_joints,
+            motion_planner.robot
+        )
+        visualizer.visualize_plan(planned_solution)
+    else:
+        print("No solution is found.")

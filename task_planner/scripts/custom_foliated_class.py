@@ -2,8 +2,11 @@ from foliation_planning.foliated_base_class import (
         FoliationConfig, 
         BaseIntersection, 
         BaseFoliation,
-        FoliatedIntersection
+        FoliatedIntersection,
+        BaseTaskMotion
     )
+
+import moveit_msgs.msg
 
 """
 CustomFoliation class
@@ -119,3 +122,37 @@ def custom_intersection_rule(foliation1, foliation2):
             for j in range(len(foliation2.co_parameters)):
                 result.append((i, j))
         return result
+
+class CustomTaskMotion(BaseTaskMotion):
+    '''
+    This class is used to store the motion plan result and passed to the visualizer.
+    '''
+    def __init__(
+        self,
+        planned_motion,
+        has_object_in_hand,
+        object_pose,
+        object_mesh_path,
+        obstacle_pose,
+        obstacle_mesh_path,
+    ):
+        # if planned_motion must be trajectory_msgs/JointTrajectory.
+        if not isinstance(planned_motion, moveit_msgs.msg.RobotTrajectory):
+            raise TypeError("planned_motion must be trajectory_msgs/JointTrajectory.")
+
+        self.planned_motion = planned_motion
+        self.has_object_in_hand = has_object_in_hand  # if the object is in hand.
+        self.object_pose = object_pose  # if the object is in hand, then this is the object pose in the hand frame. if not, this is the object pose in the base_link frame.
+        self.object_mesh_path = object_mesh_path
+        self.obstacle_pose = obstacle_pose
+        self.obstacle_mesh_path = obstacle_mesh_path
+
+    def get(self):
+        return (
+            self.planned_motion,
+            self.has_object_in_hand,
+            self.object_pose,
+            self.object_mesh_path,
+            self.obstacle_pose,
+            self.obstacle_mesh_path,
+        )

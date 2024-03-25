@@ -8,8 +8,12 @@ from visualization_msgs.msg import Marker, MarkerArray
 from ros_numpy import msgify, numpify
 import numpy as np
 
+from jiaming_helper import convert_joint_values_to_robot_state
+
+
+
 class MoveitVisualizer(BaseVisualizer):
-    def prepare_visualizer(self):
+    def prepare_visualizer(self, active_joints, robot):
         """
         This function prepares the visualizer.
         """
@@ -20,8 +24,51 @@ class MoveitVisualizer(BaseVisualizer):
             "sampled_robot_state", MarkerArray, queue_size=5
         )
 
+         # this is used to display the planned path in rviz
+        self.display_robot_state_publisher = rospy.Publisher(
+            "/move_group/result_display_robot_state",
+            moveit_msgs.msg.DisplayRobotState,
+            queue_size=5,
+        )
+        self.active_joints = active_joints
+        self.robot = robot
+
     def visualize_plan(self, plan):
-        pass
+        need_to_break = False
+        is_gripper_open = True
+        gripper_joint_names = ["l_gripper_finger_joint", "r_gripper_finger_joint"]
+
+        while not rospy.is_shutdown():
+            for task_motion in plan:
+                (
+                    motion_trajectory,
+                    has_object_in_hand,
+                    object_pose,
+                    object_mesh_path,
+                    obstacle_pose,
+                    obstacle_mesh_path,
+                ) = task_motion.get()
+
+                for p in motion_trajectory.joint_trajectory.points:
+                    current_robot_state_msg = moveit_msgs.msg.DisplayRobotState()
+
+                    gripper_positions = [0.04, 0.04]
+
+                    current_robot_state_msg.state = convert_joint_values_to_robot_state(
+                        list(p.positions) + gripper_positions, self.active_joints + gripper_joint_names, self.robot
+                    )
+
+                    self.display_robot_state_publisher.publish(current_robot_state_msg)
+
+                    rospy.sleep(0.03)
+
+                    if rospy.is_shutdown():
+                        need_to_break = True
+                        break
+                if need_to_break:
+                    break
+            if need_to_break:
+                break
 
     def generate_configuration_marker(
         self,
