@@ -74,12 +74,16 @@ class MoveitMotionPlanner(BaseMotionPlanner):
     def plan(
         self,
         start_configuration,
-        goal_configurations,
+        goal_configurations_with_following_action,
         foliation_constraints,
         co_parameter,
         related_experience,
         use_atlas=False,
     ):
+
+        goal_configurations = [i.get_intersection_motion()[0] for i in goal_configurations_with_following_action]
+        motions_after_goal = [i.get_intersection_motion() for i in goal_configurations_with_following_action]
+        actions_after_goal = [i.get_intersection_action() for i in goal_configurations_with_following_action]
 
         # reset the motion planner
         self.scene.clear()
@@ -120,23 +124,72 @@ class MoveitMotionPlanner(BaseMotionPlanner):
 
         motion_plan_result = self.move_group.plan()
 
+        if not motion_plan_result[0]:
+            return (
+                False, # success flag
+                None, # motion plan result
+                None, # next motion
+                None, # experience
+                None, # manifold constraint
+                None, # last configuration
+            )
+
+        last_configuration = motion_plan_result[1].joint_trajectory.points[-1].positions
+        # find the index of goal_configurations with the same configuration
+
+        goal_configuration_index = -1
+        for i in range(len(goal_configurations)):
+            # check if goal_configurations[i] and last_configuration are the same with for loop
+            is_euqal = True
+            for j in range(len(last_configuration)):
+                if not goal_configurations[i][j] != last_configuration[j]:
+                    is_euqal = False
+                    break
+            if is_euqal:
+                goal_configuration_index = i
+                break
+
+        if goal_configuration_index == -1:
+            raise ValueError("The last configuration is not in the goal_configurations.")
+
         # the section returned value should be a BaseTaskMotion
         generated_task_motion = CustomTaskMotion(
             motion_plan_result[1],
             "object_constraints" in foliation_constraints,
-            None,
-            None,
-            None,
-            None,
+            None, # object pose
+            None, # object mesh path
+            None, # obstacle pose
+            None, # obstacle mesh path
         )
 
-        return (
-            motion_plan_result[0], # success flag
-            generated_task_motion, # motion plan result
-            None, # experience
-            manifold_constraint, # manifold constraint
-            motion_plan_result[1].joint_trajectory.points[-1].positions # last configuration
-        )
+        if len(motions_after_goal[goal_configuration_index]) == 0:
+            next_task_motion = None
+            return (
+                motion_plan_result[0], # success flag
+                generated_task_motion, # motion plan result
+                next_task_motion, # next motion
+                None, # experience
+                manifold_constraint, # manifold constraint
+                last_configuration # last configuration
+            )
+        else:
+            next_task_motion = CustomTaskMotion(
+                convert_joint_values_to_robot_trajectory(motions_after_goal[goal_configuration_index], self.active_joints),
+                False,
+                None,
+                None,
+                None,
+                None
+            )
+
+            return (
+                motion_plan_result[0], # success flag
+                generated_task_motion, # motion plan result
+                next_task_motion, # next motion
+                None, # experience
+                manifold_constraint, # manifold constraint
+                motions_after_goal[goal_configuration_index][-1] # last configuration
+            )
 
     def shutdown_planner(self):
         moveit_commander.roscpp_shutdown()

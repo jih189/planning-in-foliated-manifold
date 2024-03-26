@@ -5,14 +5,17 @@ from foliation_planning.foliated_base_class import (
 
 from jiaming_helper import construct_moveit_constraint, get_joint_values_from_joint_state
 from custom_foliated_class import CustomIntersection
-from moveit_msgs.srv import GetJointWithConstraints, GetJointWithConstraintsRequest
+from moveit_msgs.srv import GetJointWithConstraints, GetJointWithConstraintsRequest, GetCartesianPath, GetCartesianPathRequest
 import numpy as np
+import geometry_msgs.msg
+from ros_numpy import numpify, msgify
 
 class CustomIntersectionSampler(BaseIntersectionSampler):
     def __init__(self, robot):
         self.robot = robot
         self.joint_names = self.robot.get_group("arm").get_joints()
         self.sample_joint_with_constraints_service = rospy.ServiceProxy('/sample_joint_with_constraints', GetJointWithConstraints)
+        self.get_cartesian_path_service = rospy.ServiceProxy('/compute_cartesian_path', GetCartesianPath)
 
     def generate_final_configuration(self, foliation, co_parameter_index, goal_configuration):
         """
@@ -23,7 +26,8 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
             co_parameter_index,
             foliation.foliation_name,
             co_parameter_index,
-            (goal_configuration, "done")
+            "done",
+            [goal_configuration]
         )]
 
     def generate_configurations_on_intersection(self, foliation1, co_parameter_1_index, foliation2, co_parameter_2_index, intersection_detail):
@@ -71,42 +75,99 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
         sample_request = GetJointWithConstraintsRequest()
         sample_request.constraints = moveit_constraint
         sample_request.group_name = "arm"
-        sample_request.max_sampling_attempt = 5
+        sample_request.max_sampling_attempt = 20
                 
         # send constraints to the service
         response = self.sample_joint_with_constraints_service(sample_request)
 
         sampled_configurations = np.array([get_joint_values_from_joint_state(s.joint_state, self.joint_names) for s in response.solutions])
+        sampled_robot_states = []
 
         if len(sampled_configurations) > 0:
             # filter out if two configurations are too close
             filtered_sampled_configurations = [sampled_configurations[0]]
-            sampled_intersection_set = [
-                CustomIntersection(
-                    foliation1.foliation_name,
-                    co_parameter_1_index,
-                    foliation2.foliation_name,
-                    co_parameter_2_index,
-                    (sampled_configurations[0].tolist(), intersection_action)
-                )
-            ]
-            for i in sampled_configurations[1:]:
+            sampled_robot_states.append(response.solutions[0])
+            for i in range(1, len(sampled_configurations)):
                 has_close_configuration = False
                 for j in filtered_sampled_configurations:
-                    if np.linalg.norm(i - j) < 0.1:
+                    if np.linalg.norm(sampled_configurations[i] - j) < 0.1:
                         has_close_configuration = True
                         break
                 if not has_close_configuration:
-                    filtered_sampled_configurations.append(i)
+                    filtered_sampled_configurations.append(sampled_configurations[i])
+                    sampled_robot_states.append(response.solutions[i])
+
+            sampled_intersection_set = []
+            
+            if intersection_action == "release" or intersection_action == "grasp":
+                pre_grasp_pose_mat = np.dot(
+                    np.dot(placement, np.linalg.inv(grasp)),
+                    np.array([[1, 0, 0, -0.05], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
+                )
+
+                pre_grasp_pose = msgify(geometry_msgs.msg.Pose, pre_grasp_pose_mat)
+
+                # evaluate the next motion action with cartesian path
+                for i in range(len(filtered_sampled_configurations)):
+                    cartesian_path_request = GetCartesianPathRequest()
+                    cartesian_path_request.start_state = sampled_robot_states[i]
+                    cartesian_path_request.group_name = "arm"
+                    cartesian_path_request.waypoints = [pre_grasp_pose]
+                    cartesian_path_request.max_step = 0.005
+                    cartesian_path_request.jump_threshold = 5.0
+                    cartesian_path_request.avoid_collisions = True
+                    cartesian_path_request.link_name = "wrist_roll_link"
+
+                    # set header
+                    cartesian_path_request.header.frame_id = "base_link"
+                    cartesian_path_request.header.stamp = rospy.Time.now()
+
+                    # send the request to the service
+                    cartesian_path_response = self.get_cartesian_path_service(cartesian_path_request)
+
+                    if cartesian_path_response.fraction > 0.9:
+
+                        intersection_motion = np.array(
+                            [p.positions for p in cartesian_path_response.solution.joint_trajectory.points]
+                        ).tolist()
+
+                        if intersection_action == "release":
+                            sampled_intersection_set.append(
+                                CustomIntersection(
+                                    foliation1.foliation_name,
+                                    co_parameter_1_index,
+                                    foliation2.foliation_name,
+                                    co_parameter_2_index,
+                                    intersection_action,
+                                    intersection_motion
+                                )
+                            )
+                        elif intersection_action == "grasp":
+                            sampled_intersection_set.append(
+                                CustomIntersection(
+                                    foliation1.foliation_name,
+                                    co_parameter_1_index,
+                                    foliation2.foliation_name,
+                                    co_parameter_2_index,
+                                    intersection_action,
+                                    intersection_motion[::-1]
+                                )
+                            )
+            else:
+                # when the intersection action is hold
+                for i in range(len(filtered_sampled_configurations)):
                     sampled_intersection_set.append(
                         CustomIntersection(
                             foliation1.foliation_name,
                             co_parameter_1_index,
                             foliation2.foliation_name,
                             co_parameter_2_index,
-                            (i.tolist(), intersection_action)
+                            intersection_action,
+                            [] # here is no intersection motion
                         )
-                    )
+                    )         
+
             return sampled_intersection_set
         else:
             return []
+ 

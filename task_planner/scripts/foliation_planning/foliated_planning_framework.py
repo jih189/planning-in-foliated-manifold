@@ -129,12 +129,13 @@ class FoliatedPlanningFramework:
             (
                 success_flag,
                 motion_plan_result,
+                next_motion,
                 experience,
                 manifold_constraint,
                 last_configuration, # last configuration of the planned motion.
             ) = self.motion_planner.plan(
                 current_start_configuration,
-                [i.intersection_action[0] for i in first_task_in_lead_sequence.goal_configurations_with_following_action],
+                first_task_in_lead_sequence.goal_configurations_with_following_action, #[i.intersection_action[0] for i in first_task_in_lead_sequence.goal_configurations_with_following_action],
                 first_task_in_lead_sequence.foliation_constraints,
                 first_task_in_lead_sequence.co_parameter,
                 first_task_in_lead_sequence.related_experience,
@@ -160,6 +161,7 @@ class FoliatedPlanningFramework:
             if success_flag:
                 # if the motion planning is successful, then we can append the result to the current solution trajectory.
                 current_solution_trajectory.append(motion_plan_result)
+                current_solution_trajectory.append(next_motion)
                 current_foliation_name = first_mode_transition_in_sequence[2]
                 current_co_parameter_index = first_mode_transition_in_sequence[3]
                 current_start_configuration = last_configuration

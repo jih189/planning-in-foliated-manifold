@@ -32,25 +32,29 @@ class CustomIntersection(BaseIntersection):
             co_parameter1_index, 
             foliation2_name, 
             co_parameter2_index, 
-            intersection_action # the intersection action is a tuple (arm configuration, grasp or release)
+            intersection_action,
+            intersection_motion
         ):
-        super(CustomIntersection, self).__init__(foliation1_name, co_parameter1_index, foliation2_name, co_parameter2_index, intersection_action)
+        super(CustomIntersection, self).__init__(foliation1_name, co_parameter1_index, foliation2_name, co_parameter2_index, intersection_action, intersection_motion)
 
     def get_intersection_action(self):
-        return self.intersection_action[1]
+        return self.intersection_action
 
-    def get_edge_configurations(self):
-        return [self.intersection_action[0], self.intersection_action[0]]
+    def get_intersection_motion(self):
+        return self.intersection_motion
 
     def inverse_action(self):
-        if self.intersection_action[1] == "grasp":
-            return (self.intersection_action[0], "release")
+        if self.intersection_action == "grasp":
+            return "release"
         elif self.intersection_action[1] == "release":
-            return (self.intersection_action[0], "grasp")
+            return "grasp"
         elif self.intersection_action[1] == "hold":
-            return (self.intersection_action[0], "hold")
+            return "hold"
         else:
             raise ValueError("The intersection action is not supported.")
+
+    def inverse_motion(self):
+        return self.intersection_motion[::-1]
 
 """
 CustomFoliationConfig class

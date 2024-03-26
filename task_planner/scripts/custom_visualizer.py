@@ -40,6 +40,8 @@ class MoveitVisualizer(BaseVisualizer):
 
         while not rospy.is_shutdown():
             for task_motion in plan:
+                if task_motion is None:
+                    continue
                 (
                     motion_trajectory,
                     has_object_in_hand,
@@ -52,7 +54,10 @@ class MoveitVisualizer(BaseVisualizer):
                 for p in motion_trajectory.joint_trajectory.points:
                     current_robot_state_msg = moveit_msgs.msg.DisplayRobotState()
 
-                    gripper_positions = [0.04, 0.04]
+                    if has_object_in_hand:
+                        gripper_positions = [0.0, 0.0]
+                    else:
+                        gripper_positions = [0.04, 0.04]
 
                     current_robot_state_msg.state = convert_joint_values_to_robot_state(
                         list(p.positions) + gripper_positions, self.active_joints + gripper_joint_names, self.robot

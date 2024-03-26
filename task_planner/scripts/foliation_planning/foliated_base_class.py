@@ -13,12 +13,13 @@ class BaseIntersection:
         Remember, this intersection can be a point, a motion action.
     """
 
-    def __init__(self, foliation1_name, co_parameter1_index, foliation2_name, co_parameter2_index, intersection_action):
+    def __init__(self, foliation1_name, co_parameter1_index, foliation2_name, co_parameter2_index, intersection_action, intersection_motion):
         self.foliation1_name = foliation1_name
         self.co_parameter1_index = co_parameter1_index
         self.foliation2_name = foliation2_name
         self.co_parameter2_index = co_parameter2_index
-        self.intersection_action = intersection_action # the action to transit from one manifold to another manifold
+        self.intersection_action = intersection_action
+        self.intersection_motion = intersection_motion
 
     @abstractmethod
     def get_intersection_action(self):
@@ -26,18 +27,19 @@ class BaseIntersection:
         raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
-    def get_edge_configurations(self):
-        """
-        Return two edge configurations of intersection motion. That is, this two edge configurations 
-        are the start and goal configurations of the intersection motion. While start configuration is
-        the configuration in the first manifold, and the goal configuration is the configuration in the
-        second manifold.
-        """
+    def get_intersection_motion(self):
+        """Return the intersection motion. That is, the motion to reach the intersection."""
         raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
     def inverse_action(self):
         """Return the inverse of the intersection action, user needs to implement this function"""
+        # Return inversed the intersection
+        raise NotImplementedError("Please Implement this method")
+    
+    @abstractmethod
+    def inverse_motion(self):
+        """Return the inverse of the intersection motion, user needs to implement this function"""
         # Return inversed the intersection
         raise NotImplementedError("Please Implement this method")
 
@@ -48,6 +50,7 @@ class BaseIntersection:
             self.foliation1_name,
             self.co_parameter1_index,
             self.inverse_action(),
+            self.inverse_motion()
         )
 
 class BaseFoliation:

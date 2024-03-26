@@ -65,7 +65,7 @@ class MTGTaskPlanner(BaseTaskPlanner):
     def generate_lead_sequence(self, current_start_configuration, current_foliation_name, current_co_parameter_index):
 
         found_lead = True
-        for step in range(100):
+        for step in range(20):
             found_lead = True
 
             # check if there is a path between the start and the goal
