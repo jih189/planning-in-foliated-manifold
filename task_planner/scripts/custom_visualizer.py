@@ -24,7 +24,11 @@ class MoveitVisualizer(BaseVisualizer):
             "sampled_robot_state", MarkerArray, queue_size=5
         )
 
-         # this is used to display the planned path in rviz
+        self.obstacle_publisher = rospy.Publisher(
+            "/obstacle_marker", MarkerArray, queue_size=5
+        )
+
+        # this is used to display the planned path in rviz
         self.display_robot_state_publisher = rospy.Publisher(
             "/move_group/result_display_robot_state",
             moveit_msgs.msg.DisplayRobotState,
@@ -51,6 +55,20 @@ class MoveitVisualizer(BaseVisualizer):
                     obstacle_mesh_path,
                 ) = task_motion.get()
 
+                obstacle_marker_array = MarkerArray()
+                obstacle_marker = Marker()
+                obstacle_marker.header.frame_id = "base_link"
+                obstacle_marker.id = 0
+                obstacle_marker.type = Marker.MESH_RESOURCE
+                obstacle_marker.mesh_resource = (
+                    "package://task_planner/mesh_dir/"
+                    + os.path.basename(obstacle_mesh_path)
+                )
+                obstacle_marker.pose = obstacle_pose
+                obstacle_marker.scale = Point(1, 1, 1)
+                obstacle_marker.color = ColorRGBA(0.5, 0.5, 0.5, 1)
+                obstacle_marker_array.markers.append(obstacle_marker)
+
                 for p in motion_trajectory.joint_trajectory.points:
                     current_robot_state_msg = moveit_msgs.msg.DisplayRobotState()
 
@@ -64,6 +82,7 @@ class MoveitVisualizer(BaseVisualizer):
                     )
 
                     self.display_robot_state_publisher.publish(current_robot_state_msg)
+                    self.obstacle_publisher.publish(obstacle_marker_array)
 
                     rospy.sleep(0.03)
 

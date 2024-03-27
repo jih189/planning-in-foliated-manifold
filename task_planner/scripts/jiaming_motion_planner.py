@@ -158,8 +158,8 @@ class MoveitMotionPlanner(BaseMotionPlanner):
             "object_constraints" in foliation_constraints,
             None, # object pose
             None, # object mesh path
-            None, # obstacle pose
-            None, # obstacle mesh path
+            foliation_constraints["obstacle_pose"], # obstacle pose
+            foliation_constraints["obstacle_mesh"], # obstacle mesh path
         )
 
         if len(motions_after_goal[goal_configuration_index]) == 0:
@@ -178,8 +178,8 @@ class MoveitMotionPlanner(BaseMotionPlanner):
                 False,
                 None,
                 None,
-                None,
-                None
+                foliation_constraints["obstacle_pose"],
+                foliation_constraints["obstacle_mesh"]
             )
 
             return (

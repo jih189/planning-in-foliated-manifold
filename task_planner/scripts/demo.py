@@ -35,6 +35,19 @@ if __name__ == "__main__":
     # Get the path of the desired package
     package_path = rospkg.RosPack().get_path("task_planner")
 
+    obstacle_mesh_path = package_path + "/mesh_dir/desk.stl"
+
+    obstacle_pose = Pose()
+    obstacle_pose.position.x = 0.51
+    obstacle_pose.position.y = 0.05
+    obstacle_pose.position.z = -0.02
+    obstacle_pose.orientation.x = 0
+    obstacle_pose.orientation.y = 0
+    obstacle_pose.orientation.z = 0.707
+    obstacle_pose.orientation.w = 0.707
+
+    manipulated_object_mesh_path = package_path + "/mesh_dir/cup.stl"
+
     # problem_publisher = rospy.Publisher(
     #     "/problem_visualization_marker_array", MarkerArray, queue_size=5
     # )
@@ -90,7 +103,9 @@ if __name__ == "__main__":
         "co-parameter-set": [
             start_object_pose
         ],
-        "similarity-matrix": np.identity(1)
+        "similarity-matrix": np.identity(1),
+        "obstacle_pose": obstacle_pose, 
+        "obstacle_mesh": obstacle_mesh_path
     }
 
     loaded_array = np.load(package_path + "/mesh_dir/cup.npz")
@@ -110,7 +125,9 @@ if __name__ == "__main__":
             "position_tolerance": np.array([2000, 2000, 0.0008]),
         },
         "co-parameter-set": grasp_inv_set,
-        "similarity-matrix": foliation_slide_object_similarity_matrix
+        "similarity-matrix": foliation_slide_object_similarity_matrix,
+        "obstacle_pose": obstacle_pose, 
+        "obstacle_mesh": obstacle_mesh_path
     }
 
     foliation_reset_robot = {
@@ -118,21 +135,27 @@ if __name__ == "__main__":
         "co-parameter-type": "placement",
         "object_mesh": "cup",
         "co-parameter-set": [goal_object_pose],
-        "similarity-matrix": np.identity(1)
+        "similarity-matrix": np.identity(1),
+        "obstacle_pose": obstacle_pose, 
+        "obstacle_mesh": obstacle_mesh_path
     }
 
     intersection_approach_object_slide_object = {
         "name": "approach_object_slide_object",
         "foliation1": "approach_object",
         "foliation2": "slide_object", 
-        "intersection_detail": {}
+        "intersection_detail": {},
+        "obstacle_pose": obstacle_pose, 
+        "obstacle_mesh": obstacle_mesh_path
     }
 
     intersection_slide_object_reset_robot = {
         "name": "pour_object_reset_robot",
         "foliation1": "slide_object",
         "foliation2": "reset_robot",
-        "intersection_detail": {}
+        "intersection_detail": {},
+        "obstacle_pose": obstacle_pose, 
+        "obstacle_mesh": obstacle_mesh_path
     }
 
     foliation_config = CustomFoliationConfig(

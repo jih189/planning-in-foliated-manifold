@@ -69,7 +69,9 @@ class CustomFoliationConfig(FoliationConfig):
             # include the object mesh and the object constraints during action.
             constraint_parameters = {
                 "object_mesh": foliation["object_mesh"],
-                "object_constraints": foliation["object_constraints"]
+                "object_constraints": foliation["object_constraints"],
+                "obstacle_pose": foliation["obstacle_pose"],
+                "obstacle_mesh": foliation["obstacle_mesh"]
             }
             return CustomFoliation(
                     foliation["name"],
@@ -83,6 +85,8 @@ class CustomFoliationConfig(FoliationConfig):
             # include the object mesh.
             constraint_parameters = {
                 "object_mesh": foliation["object_mesh"],
+                "obstacle_pose": foliation["obstacle_pose"],
+                "obstacle_mesh": foliation["obstacle_mesh"]
             }
             return CustomFoliation(
                     foliation["name"],
