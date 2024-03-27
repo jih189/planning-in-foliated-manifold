@@ -90,6 +90,22 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         self.move_group.clear_path_constraints()
         self.move_group.clear_in_hand_pose()
         self.move_group.clear_distribution()
+        
+        obstacle_pose_stamped = PoseStamped()
+        obstacle_pose_stamped.header.frame_id = "base_link"
+        obstacle_pose_stamped.pose = foliation_constraints["obstacle_pose"]
+
+        # add the obstacle into the planning scene.
+        self.scene.add_mesh(
+            "obstacle",
+            obstacle_pose_stamped,
+            foliation_constraints["obstacle_mesh"],
+            size=(1, 1, 1)
+        )
+
+        while "obstacle" not in self.scene.get_known_object_names():
+            rospy.sleep(0.0001)
+
 
         start_moveit_robot_state = convert_joint_values_to_robot_state(
             start_configuration, self.active_joints, self.robot

@@ -150,13 +150,14 @@ class FoliatedPlanningFramework:
                     return current_solution_trajectory
 
             # update the task planner based on the result from motion planner.
-            self.task_planner.update(
-                first_mode_transition_in_sequence,
-                success_flag,
-                motion_plan_result,
-                experience,
-                manifold_constraint,
-            )
+            if first_mode_transition_in_sequence is not None:
+                self.task_planner.update(
+                    first_mode_transition_in_sequence,
+                    success_flag,
+                    motion_plan_result,
+                    experience,
+                    manifold_constraint,
+                )
 
             if success_flag:
                 # if the motion planning is successful, then we can append the result to the current solution trajectory.

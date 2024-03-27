@@ -9,10 +9,12 @@ from moveit_msgs.srv import GetJointWithConstraints, GetJointWithConstraintsRequ
 import numpy as np
 import geometry_msgs.msg
 from ros_numpy import numpify, msgify
+from geometry_msgs.msg import Quaternion, Point, Pose, PoseStamped, Point32
 
 class CustomIntersectionSampler(BaseIntersectionSampler):
-    def __init__(self, robot):
+    def __init__(self, robot, scene):
         self.robot = robot
+        self.scene = scene
         self.joint_names = self.robot.get_group("arm").get_joints()
         self.sample_joint_with_constraints_service = rospy.ServiceProxy('/sample_joint_with_constraints', GetJointWithConstraints)
         self.get_cartesian_path_service = rospy.ServiceProxy('/compute_cartesian_path', GetCartesianPath)
@@ -71,6 +73,24 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
             intersection_action = "hold"
         else:
             raise ValueError("The co-parameter type is not supported.")
+        
+        # set the scene with obstacle.
+        self.scene.clear()
+
+        obstacle_pose_stamped = PoseStamped()
+        obstacle_pose_stamped.header.frame_id = "base_link"
+        obstacle_pose_stamped.pose = intersection_detail["obstacle_pose"]
+
+        # add the obstacle into the planning scene.
+        self.scene.add_mesh(
+            "obstacle",
+            obstacle_pose_stamped,
+            intersection_detail["obstacle_mesh"],
+            size=(1, 1, 1)
+        )
+
+        while "obstacle" not in self.scene.get_known_object_names():
+            rospy.sleep(0.0001)
         
         sample_request = GetJointWithConstraintsRequest()
         sample_request.constraints = moveit_constraint

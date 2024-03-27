@@ -65,7 +65,7 @@ class MTGTaskPlanner(BaseTaskPlanner):
     def generate_lead_sequence(self, current_start_configuration, current_foliation_name, current_co_parameter_index):
 
         found_lead = True
-        for step in range(20):
+        for step in range(100):
             found_lead = True
 
             # check if there is a path between the start and the goal
@@ -84,6 +84,7 @@ class MTGTaskPlanner(BaseTaskPlanner):
 
             # return the edges of the shortest path
             for i in range(len(path) - 1):
+
                 sampled_intersections = self.intersection_sampler.generate_configurations_on_intersection(
                     self.foliations_set[path[i][0]],
                     path[i][1],
@@ -91,7 +92,6 @@ class MTGTaskPlanner(BaseTaskPlanner):
                     path[i+1][1],
                     self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"]
                 )
-
                 if len(sampled_intersections) == 0:
                     self.add_penalty(
                         path[i][0],

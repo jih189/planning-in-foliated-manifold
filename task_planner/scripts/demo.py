@@ -144,18 +144,21 @@ if __name__ == "__main__":
         "name": "approach_object_slide_object",
         "foliation1": "approach_object",
         "foliation2": "slide_object", 
-        "intersection_detail": {},
-        "obstacle_pose": obstacle_pose, 
-        "obstacle_mesh": obstacle_mesh_path
+        "intersection_detail": {
+            "obstacle_pose": obstacle_pose, 
+            "obstacle_mesh": obstacle_mesh_path
+        },
+        
     }
 
     intersection_slide_object_reset_robot = {
         "name": "pour_object_reset_robot",
         "foliation1": "slide_object",
         "foliation2": "reset_robot",
-        "intersection_detail": {},
-        "obstacle_pose": obstacle_pose, 
-        "obstacle_mesh": obstacle_mesh_path
+        "intersection_detail": {
+            "obstacle_pose": obstacle_pose, 
+            "obstacle_mesh": obstacle_mesh_path
+        },
     }
 
     foliation_config = CustomFoliationConfig(
@@ -177,12 +180,14 @@ if __name__ == "__main__":
     
     foliated_planning_framework = FoliatedPlanningFramework()
 
+    foliated_planning_framework.setMaxAttemptTime(20)
+
     task_planner = MTGTaskPlanner()
     foliated_planning_framework.setTaskPlanner(task_planner)
 
     motion_planner = MoveitMotionPlanner()
 
-    intersection_sampler = CustomIntersectionSampler(motion_planner.robot)
+    intersection_sampler = CustomIntersectionSampler(motion_planner.robot, motion_planner.scene)
     foliated_planning_framework.setIntersectionSampler(intersection_sampler)
 
     foliated_planning_framework.setMotionPlanner(motion_planner)
