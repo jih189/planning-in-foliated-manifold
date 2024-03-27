@@ -91,6 +91,22 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
 
         while "obstacle" not in self.scene.get_known_object_names():
             rospy.sleep(0.0001)
+
+        if intersection_action == "release" or intersection_action == "grasp":
+            # need to add manipulated object during the release or grasp action
+            object_pose_stamped = PoseStamped()
+            object_pose_stamped.header.frame_id = "base_link"
+            object_pose_stamped.pose = msgify(geometry_msgs.msg.Pose, placement)
+
+            self.scene.add_mesh(
+                "object",
+                object_pose_stamped,
+                intersection_detail["object_mesh"],
+                size=(1, 1, 1)
+            ) 
+
+            while "object" not in self.scene.get_known_object_names():
+                rospy.sleep(0.0001)
         
         sample_request = GetJointWithConstraintsRequest()
         sample_request.constraints = moveit_constraint

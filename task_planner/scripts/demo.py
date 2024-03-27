@@ -48,10 +48,6 @@ if __name__ == "__main__":
 
     manipulated_object_mesh_path = package_path + "/mesh_dir/cup.stl"
 
-    # problem_publisher = rospy.Publisher(
-    #     "/problem_visualization_marker_array", MarkerArray, queue_size=5
-    # )
-
     start_object_pose = np.array([[1,0,0,0.65],
                                   [0,1,0,-0.55],
                                   [0,0,1,0.78],
@@ -62,36 +58,6 @@ if __name__ == "__main__":
                                 [0,0,1,0.78],
                                 [0,0,0,1]])
 
-
-    # manipulated_object_mesh_path = package_path + "/mesh_dir/cup.stl"
-
-    # # visualize both start and goal object placements
-    # marker_array = MarkerArray()
-
-    # object_marker = Marker()
-    # object_marker.header.frame_id = "base_link"
-    # object_marker.header.stamp = rospy.Time.now()
-    # object_marker.ns = "placement"
-    # object_marker.id = 0
-    # object_marker.type = Marker.MESH_RESOURCE
-    # object_marker.action = Marker.ADD
-    # object_marker.pose = msgify(Pose, start_object_pose)
-    # object_marker.scale = Point(1, 1, 1)
-    # object_marker.color = ColorRGBA(1.0, 0.5, 0.5, 1)
-    # object_marker.mesh_resource = (
-    #     "package://task_planner/mesh_dir/"
-    #     + os.path.basename(manipulated_object_mesh_path)
-    # )
-    # marker_array.markers.append(object_marker)
-
-    # object_marker.id = 1
-    # object_marker.pose = msgify(Pose, goal_object_pose)
-    # object_marker.color = ColorRGBA(0.5, 1.0, 0.5, 1)
-    # marker_array.markers.append(object_marker)
-
-
-    ########################################################################
-
     table_top_pose = np.array(
         [[1, 0, 0, 0.5], [0, 1, 0, 0], [0, 0, 1, 0.78], [0, 0, 0, 1]]
     )
@@ -99,7 +65,7 @@ if __name__ == "__main__":
     foliation_approach_object = {
         "name": "approach_object",
         "co-parameter-type": "placement",
-        "object_mesh": "cup",
+        "object_mesh": manipulated_object_mesh_path,
         "co-parameter-set": [
             start_object_pose
         ],
@@ -117,7 +83,7 @@ if __name__ == "__main__":
     foliation_slide_object = {
         "name": "slide_object",
         "co-parameter-type": "grasp",
-        "object_mesh": "cup",
+        "object_mesh": manipulated_object_mesh_path,
         "object_constraints": {
             "frame_id": "base_link",
             "reference_pose": table_top_pose,
@@ -133,7 +99,7 @@ if __name__ == "__main__":
     foliation_reset_robot = {
         "name": "reset_robot",
         "co-parameter-type": "placement",
-        "object_mesh": "cup",
+        "object_mesh": manipulated_object_mesh_path,
         "co-parameter-set": [goal_object_pose],
         "similarity-matrix": np.identity(1),
         "obstacle_pose": obstacle_pose, 
@@ -146,7 +112,8 @@ if __name__ == "__main__":
         "foliation2": "slide_object", 
         "intersection_detail": {
             "obstacle_pose": obstacle_pose, 
-            "obstacle_mesh": obstacle_mesh_path
+            "obstacle_mesh": obstacle_mesh_path,
+            "object_mesh": manipulated_object_mesh_path
         },
         
     }
@@ -157,7 +124,8 @@ if __name__ == "__main__":
         "foliation2": "reset_robot",
         "intersection_detail": {
             "obstacle_pose": obstacle_pose, 
-            "obstacle_mesh": obstacle_mesh_path
+            "obstacle_mesh": obstacle_mesh_path,
+            "object_mesh": manipulated_object_mesh_path
         },
     }
 

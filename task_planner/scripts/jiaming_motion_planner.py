@@ -128,8 +128,43 @@ class MoveitMotionPlanner(BaseMotionPlanner):
                 foliation_constraints["object_constraints"]["position_tolerance"],
             )
             self.move_group.set_in_hand_pose(msgify(Pose, co_parameter))
+
+            # add the object in the planning scene if the object is in hand.
+            current_object_pose_stamped = PoseStamped()
+            current_object_pose_stamped.header.frame_id = "wrist_roll_link"
+            current_object_pose_stamped.pose = Pose()
+            manipulated_object = make_mesh(
+                "object",
+                current_object_pose_stamped,
+                foliation_constraints["object_mesh"]
+            )
+            attached_object = AttachedCollisionObject()
+            attached_object.link_name = "wrist_roll_link"
+            attached_object.object = manipulated_object
+            attached_object.touch_links = [
+                "l_gripper_finger_link",
+                "r_gripper_finger_link",
+                "gripper_link",
+            ]
+            attached_object.object.pose = msgify(Pose, co_parameter)
+            start_moveit_robot_state.attached_collision_objects.append(attached_object)
         else:
             manifold_constraint = get_no_constraint()
+
+            # add the object in the planning scene if the object is not in hand.
+            object_pose_stamped = PoseStamped()
+            object_pose_stamped.header.frame_id = "base_link"
+            object_pose_stamped.pose = msgify(Pose, co_parameter)
+
+            self.scene.add_mesh(
+                "object",
+                object_pose_stamped,
+                foliation_constraints["object_mesh"],
+                size=(1, 1, 1)
+            )
+
+            while "object" not in self.scene.get_known_object_names():
+                rospy.sleep(0.0001)
 
         self.move_group.set_path_constraints(manifold_constraint)
 
