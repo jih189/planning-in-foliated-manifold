@@ -4,6 +4,7 @@ from foliation_planning.foliated_base_class import BaseVisualizer
 from geometry_msgs.msg import Point, Pose, PoseStamped
 from std_msgs.msg import ColorRGBA
 import moveit_msgs.msg
+from moveit_msgs.srv import GetPositionFK, GetPositionFKRequest
 from visualization_msgs.msg import Marker, MarkerArray
 from ros_numpy import msgify, numpify
 import numpy as np
@@ -34,6 +35,10 @@ class MoveitVisualizer(BaseVisualizer):
             moveit_msgs.msg.DisplayRobotState,
             queue_size=5,
         )
+
+        rospy.wait_for_service("/compute_fk")
+        self.compute_fk_srv = rospy.ServiceProxy("/compute_fk", GetPositionFK)
+
         self.active_joints = active_joints
         self.robot = robot
 
@@ -55,7 +60,12 @@ class MoveitVisualizer(BaseVisualizer):
                     obstacle_mesh_path,
                 ) = task_motion.get()
 
-                obstacle_marker_array = MarkerArray()
+                # print "object pose"
+                # print object_pose
+                # print "object mesh path"
+                # print object_mesh_path
+
+                all_marker_array = MarkerArray()
                 obstacle_marker = Marker()
                 obstacle_marker.header.frame_id = "base_link"
                 obstacle_marker.id = 0
@@ -67,7 +77,25 @@ class MoveitVisualizer(BaseVisualizer):
                 obstacle_marker.pose = obstacle_pose
                 obstacle_marker.scale = Point(1, 1, 1)
                 obstacle_marker.color = ColorRGBA(0.5, 0.5, 0.5, 1)
-                obstacle_marker_array.markers.append(obstacle_marker)
+                all_marker_array.markers.append(obstacle_marker)
+
+                object_marker = Marker()
+                object_marker.header.frame_id = "base_link"
+                object_marker.id = 1
+                object_marker.type = Marker.MESH_RESOURCE
+                object_marker.mesh_resource = (
+                    "package://task_planner/mesh_dir/"
+                    + os.path.basename(object_mesh_path)
+                )
+                object_marker.scale = Point(1, 1, 1)
+                object_marker.color = ColorRGBA(0.5, 0.5, 0.5, 1)
+
+                if not has_object_in_hand:
+                    object_marker.pose = object_pose
+                    all_marker_array.markers.append(object_marker)
+                else:
+                    object_marker.pose = Pose()
+                    all_marker_array.markers.append(object_marker)
 
                 for p in motion_trajectory.joint_trajectory.points:
                     current_robot_state_msg = moveit_msgs.msg.DisplayRobotState()
@@ -81,8 +109,18 @@ class MoveitVisualizer(BaseVisualizer):
                         list(p.positions) + gripper_positions, self.active_joints + gripper_joint_names, self.robot
                     )
 
+                    if has_object_in_hand:
+                        fk_request = GetPositionFKRequest()
+                        fk_request.header.frame_id = "base_link"
+                        fk_request.fk_link_names = ["wrist_roll_link"]
+                        fk_request.robot_state = current_robot_state_msg.state
+
+                        fk_response = self.compute_fk_srv(fk_request)
+
+                        all_marker_array.markers[1].pose = msgify(Pose, np.dot(numpify(fk_response.pose_stamped[0].pose), numpify(object_pose)))
+
                     self.display_robot_state_publisher.publish(current_robot_state_msg)
-                    self.obstacle_publisher.publish(obstacle_marker_array)
+                    self.obstacle_publisher.publish(all_marker_array)
 
                     rospy.sleep(0.03)
 

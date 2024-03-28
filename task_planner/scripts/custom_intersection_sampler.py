@@ -29,7 +29,9 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
             foliation.foliation_name,
             co_parameter_index,
             "done",
-            [goal_configuration]
+            [goal_configuration], 
+            None,
+            None
         )]
 
     def generate_configurations_on_intersection(self, foliation1, co_parameter_1_index, foliation2, co_parameter_2_index, intersection_detail):
@@ -175,7 +177,9 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
                                     foliation2.foliation_name,
                                     co_parameter_2_index,
                                     intersection_action,
-                                    intersection_motion
+                                    intersection_motion,
+                                    intersection_detail["object_mesh"],
+                                    msgify(geometry_msgs.msg.Pose, placement)
                                 )
                             )
                         elif intersection_action == "grasp":
@@ -186,7 +190,9 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
                                     foliation2.foliation_name,
                                     co_parameter_2_index,
                                     intersection_action,
-                                    intersection_motion[::-1]
+                                    intersection_motion[::-1],
+                                    intersection_detail["object_mesh"],
+                                    msgify(geometry_msgs.msg.Pose, placement)
                                 )
                             )
             else:
@@ -199,7 +205,9 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
                             foliation2.foliation_name,
                             co_parameter_2_index,
                             intersection_action,
-                            [] # here is no intersection motion
+                            [], # here is no intersection motion
+                            intersection_detail["object_mesh"],
+                            msgify(geometry_msgs.msg.Pose, placement)
                         )
                     )         
 

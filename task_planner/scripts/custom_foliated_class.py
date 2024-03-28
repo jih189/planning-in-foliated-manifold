@@ -33,8 +33,12 @@ class CustomIntersection(BaseIntersection):
             foliation2_name, 
             co_parameter2_index, 
             intersection_action,
-            intersection_motion
+            intersection_motion, 
+            object_mesh_during_action,
+            object_pose_during_action
         ):
+        self.object_mesh_during_action = object_mesh_during_action
+        self.object_pose_during_action = object_pose_during_action
         super(CustomIntersection, self).__init__(foliation1_name, co_parameter1_index, foliation2_name, co_parameter2_index, intersection_action, intersection_motion)
 
     def get_intersection_action(self):
@@ -42,6 +46,9 @@ class CustomIntersection(BaseIntersection):
 
     def get_intersection_motion(self):
         return self.intersection_motion
+
+    def get_object_mesh_and_pose(self):
+        return self.object_mesh_during_action, self.object_pose_during_action
 
     def inverse_action(self):
         if self.intersection_action == "grasp":

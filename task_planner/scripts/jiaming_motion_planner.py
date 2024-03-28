@@ -84,6 +84,7 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         goal_configurations = [i.get_intersection_motion()[0] for i in goal_configurations_with_following_action]
         motions_after_goal = [i.get_intersection_motion() for i in goal_configurations_with_following_action]
         actions_after_goal = [i.get_intersection_action() for i in goal_configurations_with_following_action]
+        object_mesh_and_pose_after_goal = [i.get_object_mesh_and_pose() for i in goal_configurations_with_following_action]
 
         # reset the motion planner
         self.scene.clear()
@@ -207,8 +208,8 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         generated_task_motion = CustomTaskMotion(
             motion_plan_result[1],
             "object_constraints" in foliation_constraints,
-            None, # object pose
-            None, # object mesh path
+            msgify(Pose, co_parameter), # object pose
+            foliation_constraints["object_mesh"], # object mesh path
             foliation_constraints["obstacle_pose"], # obstacle pose
             foliation_constraints["obstacle_mesh"], # obstacle mesh path
         )
@@ -224,11 +225,12 @@ class MoveitMotionPlanner(BaseMotionPlanner):
                 last_configuration # last configuration
             )
         else:
+            object_mesh_during_action, object_pose_during_action = object_mesh_and_pose_after_goal[goal_configuration_index]
             next_task_motion = CustomTaskMotion(
                 convert_joint_values_to_robot_trajectory(motions_after_goal[goal_configuration_index], self.active_joints),
                 False,
-                None,
-                None,
+                object_pose_during_action,
+                object_mesh_during_action,
                 foliation_constraints["obstacle_pose"],
                 foliation_constraints["obstacle_mesh"]
             )
