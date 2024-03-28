@@ -81,7 +81,7 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
 
         obstacle_pose_stamped = PoseStamped()
         obstacle_pose_stamped.header.frame_id = "base_link"
-        obstacle_pose_stamped.pose = intersection_detail["obstacle_pose"]
+        obstacle_pose_stamped.pose = msgify(Pose, intersection_detail["obstacle_pose"])
 
         # add the obstacle into the planning scene.
         self.scene.add_mesh(

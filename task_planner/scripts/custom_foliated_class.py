@@ -7,6 +7,8 @@ from foliation_planning.foliated_base_class import (
     )
 
 import moveit_msgs.msg
+from ros_numpy import numpify, msgify
+from geometry_msgs.msg import Pose
 
 """
 CustomFoliation class
@@ -77,7 +79,7 @@ class CustomFoliationConfig(FoliationConfig):
             constraint_parameters = {
                 "object_mesh": foliation["object_mesh"],
                 "object_constraints": foliation["object_constraints"],
-                "obstacle_pose": foliation["obstacle_pose"],
+                "obstacle_pose": msgify(Pose, foliation["obstacle_pose"]),
                 "obstacle_mesh": foliation["obstacle_mesh"]
             }
             return CustomFoliation(
@@ -92,7 +94,7 @@ class CustomFoliationConfig(FoliationConfig):
             # include the object mesh.
             constraint_parameters = {
                 "object_mesh": foliation["object_mesh"],
-                "obstacle_pose": foliation["obstacle_pose"],
+                "obstacle_pose": msgify(Pose, foliation["obstacle_pose"]),
                 "obstacle_mesh": foliation["obstacle_mesh"]
             }
             return CustomFoliation(

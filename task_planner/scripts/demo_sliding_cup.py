@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-import os
-
 import rospy
 import rospkg
 
@@ -13,15 +11,8 @@ from MTG_task_planner import MTGTaskPlanner
 from jiaming_motion_planner import MoveitMotionPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
 from jiaming_helper import generate_similarity_matrix, FETCH_GRIPPER_ROTATION
-
-from moveit_msgs.msg import Constraints, PositionConstraint, OrientationConstraint
-from sensor_msgs.msg import JointState
 from custom_visualizer import MoveitVisualizer
-
-from visualization_msgs.msg import Marker, MarkerArray
-from ros_numpy import numpify, msgify
-from geometry_msgs.msg import Quaternion, Point, Pose, PoseStamped, Point32
-from std_msgs.msg import ColorRGBA
+from geometry_msgs.msg import Pose
 
 def get_position_difference_between_poses(pose_1_, pose_2_):
     """
@@ -36,31 +27,17 @@ if __name__ == "__main__":
     package_path = rospkg.RosPack().get_path("task_planner")
 
     obstacle_mesh_path = package_path + "/mesh_dir/desk.stl"
-
-    obstacle_pose = Pose()
-    obstacle_pose.position.x = 0.51
-    obstacle_pose.position.y = 0.05
-    obstacle_pose.position.z = -0.02
-    obstacle_pose.orientation.x = 0
-    obstacle_pose.orientation.y = 0
-    obstacle_pose.orientation.z = 0.707
-    obstacle_pose.orientation.w = 0.707
-
     manipulated_object_mesh_path = package_path + "/mesh_dir/cup.stl"
 
-    start_object_pose = np.array([[1,0,0,0.65],
-                                  [0,1,0,-0.55],
-                                  [0,0,1,0.78],
-                                  [0,0,0,1]])
+    obstacle_pose = np.array([[0,-1,-0,0.51], [1,0,0,0.05], [0,0,1,-0.02], [0,0,0,1]])
+    start_object_pose = np.array([[1,0,0,0.65], [0,1,0,-0.55], [0,0,1,0.78], [0,0,0,1]])
+    goal_object_pose = np.array([[1,0,0,0.65], [0,1,0,-0.15], [0,0,1,0.78],[0,0,0,1]])
+    table_top_pose = np.array([[1, 0, 0, 0.5], [0, 1, 0, 0], [0, 0, 1, 0.78], [0, 0, 0, 1]])
 
-    goal_object_pose = np.array([[1,0,0,0.65],
-                                [0,1,0,-0.15],
-                                [0,0,1,0.78],
-                                [0,0,0,1]])
-
-    table_top_pose = np.array(
-        [[1, 0, 0, 0.5], [0, 1, 0, 0], [0, 0, 1, 0.78], [0, 0, 0, 1]]
-    )
+    loaded_array = np.load(package_path + "/mesh_dir/cup.npz")
+    grasp_set = [np.dot(loaded_array[loaded_array.files[ind]], FETCH_GRIPPER_ROTATION) for ind in random.sample(list(range(len(loaded_array.files))), 100)]
+    foliation_slide_object_similarity_matrix = generate_similarity_matrix(grasp_set, get_position_difference_between_poses)
+    grasp_inv_set = [np.linalg.inv(g) for g in grasp_set]
 
     foliation_approach_object = {
         "name": "approach_object",
@@ -74,12 +51,6 @@ if __name__ == "__main__":
         "obstacle_mesh": obstacle_mesh_path
     }
 
-    loaded_array = np.load(package_path + "/mesh_dir/cup.npz")
-    grasp_set = [np.dot(loaded_array[loaded_array.files[ind]], FETCH_GRIPPER_ROTATION) for ind in random.sample(list(range(len(loaded_array.files))), 100)]
-
-    foliation_slide_object_similarity_matrix = generate_similarity_matrix(grasp_set, get_position_difference_between_poses)
-    grasp_inv_set = [np.linalg.inv(g) for g in grasp_set]
-
     foliation_slide_object = {
         "name": "slide_object",
         "co-parameter-type": "grasp",
@@ -87,7 +58,7 @@ if __name__ == "__main__":
         "object_constraints": {
             "frame_id": "base_link",
             "reference_pose": table_top_pose,
-            "orientation_tolerance": [0.001, 0.001, 0.001],
+            "orientation_tolerance": [0.001, 0.001, 6.28],
             "position_tolerance": np.array([2000, 2000, 0.0008]),
         },
         "co-parameter-set": grasp_inv_set,
@@ -147,19 +118,13 @@ if __name__ == "__main__":
     )
     
     foliated_planning_framework = FoliatedPlanningFramework()
-
     foliated_planning_framework.setMaxAttemptTime(20)
-
     task_planner = MTGTaskPlanner()
     foliated_planning_framework.setTaskPlanner(task_planner)
-
     motion_planner = MoveitMotionPlanner()
-
     intersection_sampler = CustomIntersectionSampler(motion_planner.robot, motion_planner.scene)
     foliated_planning_framework.setIntersectionSampler(intersection_sampler)
-
     foliated_planning_framework.setMotionPlanner(motion_planner)
-
     foliated_planning_framework.setFoliatedProblem(foliation_problem)
 
     foliated_planning_framework.setStartAndGoal(
@@ -173,16 +138,10 @@ if __name__ == "__main__":
 
     planned_solution = foliated_planning_framework.solve()
 
-    print("length of planned solution")
-    print(len(planned_solution))
-
     if len(planned_solution) > 0:
         print("Planned solution is found.")
         visualizer = MoveitVisualizer()
-        visualizer.prepare_visualizer(
-            motion_planner.active_joints,
-            motion_planner.robot
-        )
+        visualizer.prepare_visualizer(motion_planner.active_joints, motion_planner.robot)
         visualizer.visualize_plan(planned_solution)
     else:
         print("No solution is found.")
