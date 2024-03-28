@@ -9,6 +9,7 @@ from foliation_planning.foliated_base_class import (
 import moveit_msgs.msg
 from ros_numpy import numpify, msgify
 from geometry_msgs.msg import Pose
+import numpy as np
 
 """
 CustomFoliation class

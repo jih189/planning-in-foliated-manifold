@@ -70,8 +70,8 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
         elif foliation1.co_parameter_type == "grasp" and foliation2.co_parameter_type == "grasp":
             # if both co-parameters are grasp, then the object constraint should be from intersection detail.
             grasp = foliation1.co_parameters[co_parameter_1_index]
-            placement = intersection_detail["object_constraints"]["constraint_pose"]
-            moveit_constraint = construct_moveit_constraint(grasp, placement, intersection_detail["object_constraints"]["orientation_constraint"], intersection_detail["object_constraints"]["position_constraint"])
+            placement = intersection_detail["object_reference_pose"]
+            moveit_constraint = construct_moveit_constraint(grasp, placement, intersection_detail["object_orientation_tolerance"], intersection_detail["object_position_tolerance"])
             intersection_action = "hold"
         else:
             raise ValueError("The co-parameter type is not supported.")
@@ -205,7 +205,7 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
                             foliation2.foliation_name,
                             co_parameter_2_index,
                             intersection_action,
-                            [], # here is no intersection motion
+                            [filtered_sampled_configurations[i].tolist()],
                             intersection_detail["object_mesh"],
                             msgify(geometry_msgs.msg.Pose, placement)
                         )

@@ -148,8 +148,10 @@ class MTGTaskPlanner(BaseTaskPlanner):
 
         for i in range(len(manifolds_from_first_foliation)):
             for j in range(len(manifolds_from_second_foliation)):
-                self.mode_transition_graph[manifolds_from_first_foliation[i]][manifolds_from_second_foliation[j]]["weight"] += \
-                    penalty * self.total_similiarity_table[foliation_1][manifold_1_index][i] * self.total_similiarity_table[foliation_2][manifold_2_index][j]
+                # check if the edge exists
+                if self.mode_transition_graph.has_edge(manifolds_from_first_foliation[i], manifolds_from_second_foliation[j]):
+                    self.mode_transition_graph[manifolds_from_first_foliation[i]][manifolds_from_second_foliation[j]]["weight"] += \
+                        penalty * self.total_similiarity_table[foliation_1][manifold_1_index][i] * self.total_similiarity_table[foliation_2][manifold_2_index][j]
 
     # MTGTaskPlanner
     def update(self, mode_transition, success_flag, motion_plan_result, experience, manifold_constraint):

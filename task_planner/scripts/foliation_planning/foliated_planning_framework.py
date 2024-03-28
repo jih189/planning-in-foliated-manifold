@@ -125,7 +125,8 @@ class FoliatedPlanningFramework:
             first_task_in_lead_sequence = lead_sequence[0][0]
             first_mode_transition_in_sequence = lead_sequence[0][1]
 
-            print "first task in lead sequence: ", len(first_task_in_lead_sequence.goal_configurations_with_following_action)
+            print "attempt: ", attempt_time, "/", self.max_attempt_time
+            print "intersections to next manifolds: ", len(first_task_in_lead_sequence.goal_configurations_with_following_action)
             print "first mode transition in sequence: ", first_mode_transition_in_sequence
 
             # plan the motion
