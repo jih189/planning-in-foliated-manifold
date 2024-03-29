@@ -31,8 +31,8 @@ if __name__ == "__main__":
 
     obstacle_pose = np.array([[0,-1,-0,0.51], [1,0,0,0.05], [0,0,1,-0.02], [0,0,0,1]])
     start_object_pose = np.array([[1,0,0,0.6], [0,1,0,-0.15], [0,0,1,0.78], [0,0,0,1]])
-    pre_pouring_object_pose = np.array([[1,0,0,0.6], [0,1,0,-0.15], [0,0,1,0.9],[0,0,0,1]])
-    after_pouring_object_pose =  np.array([[1,0,0,0.6], [0,0,1,-0.15], [0,-1,0,0.9],[0,0,0,1]])
+    pre_pouring_object_pose = np.array([[1,0,0,0.64], [0,1,0,-0.15], [0,0,1,0.9],[0,0,0,1]])
+    after_pouring_object_pose =  np.array([[1,0,0,0.64], [0,0,1,-0.15], [0,-1,0,0.9],[0,0,0,1]])
     goal_object_pose = np.array([[1,0,0,0.65], [0,1,0,-0.15], [0,0,1,0.78],[0,0,0,1]])
     table_top_pose = np.array([[1, 0, 0, 0.5], [0, 1, 0, 0], [0, 0, 1, 0.78], [0, 0, 0, 1]])
 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         "object_constraints": {
             "frame_id": "base_link",
             "reference_pose": table_top_pose,
-            "orientation_tolerance": [6.28, 6.29, 6.28],
+            "orientation_tolerance": [6.28, 3.14, 3.14],
             "position_tolerance": np.array([2000, 2000, 2000]),
         },
         "co-parameter-set": grasp_inv_set,

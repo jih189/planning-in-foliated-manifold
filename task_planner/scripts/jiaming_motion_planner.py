@@ -187,14 +187,17 @@ class MoveitMotionPlanner(BaseMotionPlanner):
             )
 
         last_configuration = motion_plan_result[1].joint_trajectory.points[-1].positions
-        # find the index of goal_configurations with the same configuration
 
+        # find the index of goal_configurations with the same configuration
         goal_configuration_index = -1
         for i in range(len(goal_configurations)):
             # check if goal_configurations[i] and last_configuration are the same with for loop
             is_euqal = True
             for j in range(len(last_configuration)):
-                if not goal_configurations[i][j] != last_configuration[j]:
+                angle1 = goal_configurations[i][j] % 6.28318530718
+                angle2 = last_configuration[j] % 6.28318530718
+                angle_diff = abs(angle1 - angle2)
+                if min(angle_diff, 6.28318530718 - angle_diff) > 0.01:
                     is_euqal = False
                     break
             if is_euqal:
