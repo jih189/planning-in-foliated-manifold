@@ -8,11 +8,13 @@ from custom_foliated_class import CustomFoliationConfig, custom_intersection_rul
 from foliation_planning.foliated_base_class import FoliatedProblem, IntersectionRule
 from foliation_planning.foliated_planning_framework import FoliatedPlanningFramework
 from MTG_task_planner import MTGTaskPlanner
+from FoliatedRepMap_task_planner import FoliatedRepMapTaskPlanner
 from jiaming_motion_planner import MoveitMotionPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
 from jiaming_helper import generate_similarity_matrix, FETCH_GRIPPER_ROTATION
 from custom_visualizer import MoveitVisualizer
 from geometry_msgs.msg import Pose
+from jiaming_GMM import GMM
 
 def get_position_difference_between_poses(pose_1_, pose_2_):
     """
@@ -118,8 +120,16 @@ if __name__ == "__main__":
     )
     
     foliated_planning_framework = FoliatedPlanningFramework()
-    foliated_planning_framework.setMaxAttemptTime(20)
-    task_planner = MTGTaskPlanner()
+    foliated_planning_framework.setMaxAttemptTime(1)
+    #########################################################
+    # task_planner = MTGTaskPlanner()
+    
+    # load the gmm
+    gmm_dir_path = package_path + "/computed_gmms_dir/dpgmm/"
+    gmm = GMM()
+    gmm.load_distributions(gmm_dir_path)
+    task_planner = FoliatedRepMapTaskPlanner(gmm)
+    #########################################################
     foliated_planning_framework.setTaskPlanner(task_planner)
     motion_planner = MoveitMotionPlanner()
     intersection_sampler = CustomIntersectionSampler(motion_planner.robot, motion_planner.scene)

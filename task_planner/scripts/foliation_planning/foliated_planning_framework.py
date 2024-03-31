@@ -129,6 +129,8 @@ class FoliatedPlanningFramework:
             print "intersections to next manifolds: ", len(first_task_in_lead_sequence.goal_configurations_with_following_action)
             print "first mode transition in sequence: ", first_mode_transition_in_sequence
 
+            return [] # for debugging
+
             # plan the motion
             (
                 success_flag,
