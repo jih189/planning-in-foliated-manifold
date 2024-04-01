@@ -11,7 +11,7 @@ from MTG_task_planner import MTGTaskPlanner
 from FoliatedRepMap_task_planner import FoliatedRepMapTaskPlanner
 from jiaming_motion_planner import MoveitMotionPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
-from jiaming_helper import generate_similarity_matrix, FETCH_GRIPPER_ROTATION
+from jiaming_helper import generate_similarity_matrix, GRIPPER_ROTATION
 from custom_visualizer import MoveitVisualizer
 from geometry_msgs.msg import Pose
 from jiaming_GMM import GMM
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     table_top_pose = np.array([[1, 0, 0, 0.5], [0, 1, 0, 0], [0, 0, 1, 0.78], [0, 0, 0, 1]])
 
     loaded_array = np.load(package_path + "/mesh_dir/cup.npz")
-    grasp_set = [np.dot(loaded_array[loaded_array.files[ind]], FETCH_GRIPPER_ROTATION) for ind in random.sample(list(range(len(loaded_array.files))), 100)]
+    grasp_set = [np.dot(loaded_array[loaded_array.files[ind]], GRIPPER_ROTATION) for ind in random.sample(list(range(len(loaded_array.files))), 100)]
     foliation_slide_object_similarity_matrix = generate_similarity_matrix(grasp_set, get_position_difference_between_poses)
     grasp_inv_set = [np.linalg.inv(g) for g in grasp_set]
 

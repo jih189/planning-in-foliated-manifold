@@ -22,9 +22,8 @@ except:
         )
 
 ############################# CONSTANTS #############################
-FETCH_GRIPPER_ROTATION = np.array([[1, 0, 0, -0.17], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-
-# Create a JointState message
+# Fetch robot constants
+GRIPPER_ROTATION = np.array([[1, 0, 0, -0.17], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 INIT_JOINT_NAMES = [
         "torso_lift_joint",
         "shoulder_pan_joint",
@@ -36,6 +35,8 @@ INIT_JOINT_NAMES = [
         "r_gripper_finger_joint",
     ]
 INIT_JOINT_POSITIONS = [0.3, -1.28, 1.52, 0.35, 1.81, 1.47, 0.04, 0.04]
+END_EFFECTOR_LINK = "wrist_roll_link"
+TOUCH_LINKS = ["l_gripper_finger_link", "r_gripper_finger_link", "gripper_link"]
 #####################################################################
 
 # convert a list of joint values to robotTrajectory
@@ -97,7 +98,7 @@ def get_no_constraint():
     oc.parameterization = OrientationConstraint.ROTATION_VECTOR
     oc.header.frame_id = "base_link"
     oc.header.stamp = rospy.Time(0)
-    oc.link_name = "wrist_roll_link"
+    oc.link_name = END_EFFECTOR_LINK
     constrained_quaternion = Quaternion()
     constrained_quaternion.x = 0.0
     constrained_quaternion.y = 0.0
@@ -139,7 +140,7 @@ def construct_moveit_constraint(in_hand_pose_, constraint_pose_, orientation_con
     oc.parameterization = OrientationConstraint.ROTATION_VECTOR
     oc.header.frame_id = "base_link"
     oc.header.stamp = rospy.Time(0)
-    oc.link_name = "wrist_roll_link"
+    oc.link_name = END_EFFECTOR_LINK
     constrained_quaternion = Quaternion()
     constrained_quaternion.x = moveit_quaternion[0]
     constrained_quaternion.y = moveit_quaternion[1]
@@ -157,7 +158,7 @@ def construct_moveit_constraint(in_hand_pose_, constraint_pose_, orientation_con
     pc = PositionConstraint()
     pc.header.frame_id = "base_link"
     pc.header.stamp = rospy.Time(0)
-    pc.link_name = "wrist_roll_link"
+    pc.link_name = END_EFFECTOR_LINK
     pc.target_point_offset.x = moveit_translation[0]
     pc.target_point_offset.y = moveit_translation[1]
     pc.target_point_offset.z = moveit_translation[2]
