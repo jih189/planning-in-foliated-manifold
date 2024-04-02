@@ -10,7 +10,7 @@ from foliation_planning.foliated_planning_framework import FoliatedPlanningFrame
 from MTG_task_planner import MTGTaskPlanner
 from jiaming_motion_planner import MoveitMotionPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
-from jiaming_helper import generate_similarity_matrix, GRIPPER_ROTATION
+from jiaming_helper import generate_similarity_matrix, GRIPPER_ROTATION, INIT_ACTIVE_JOINT_POSITIONS
 from custom_visualizer import MoveitVisualizer
 from geometry_msgs.msg import Pose
 
@@ -195,10 +195,10 @@ if __name__ == "__main__":
     foliated_planning_framework.setStartAndGoal(
         "approach_object",
         0,
-        [-1.28, 1.51, 0.35, 1.81, 0.0, 1.47, 0.0],
+        INIT_ACTIVE_JOINT_POSITIONS,
         "reset_robot",
         0,
-        [-1.28, 1.51, 0.35, 1.81, 0.0, 1.47, 0.0],
+        INIT_ACTIVE_JOINT_POSITIONS,
     )
 
     planned_solution = foliated_planning_framework.solve()

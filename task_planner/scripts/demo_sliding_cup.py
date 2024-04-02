@@ -11,7 +11,7 @@ from MTG_task_planner import MTGTaskPlanner
 from FoliatedRepMap_task_planner import FoliatedRepMapTaskPlanner
 from jiaming_motion_planner import MoveitMotionPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
-from jiaming_helper import generate_similarity_matrix, GRIPPER_ROTATION
+from jiaming_helper import generate_similarity_matrix, GRIPPER_ROTATION, INIT_ACTIVE_JOINT_POSITIONS
 from custom_visualizer import MoveitVisualizer
 from geometry_msgs.msg import Pose
 from jiaming_GMM import GMM
@@ -31,9 +31,9 @@ if __name__ == "__main__":
     obstacle_mesh_path = package_path + "/mesh_dir/desk.stl"
     manipulated_object_mesh_path = package_path + "/mesh_dir/cup.stl"
 
-    obstacle_pose = np.array([[0,-1,-0,0.51], [1,0,0,0.05], [0,0,1,-0.02], [0,0,0,1]])
-    start_object_pose = np.array([[1,0,0,0.65], [0,1,0,-0.55], [0,0,1,0.78], [0,0,0,1]])
-    goal_object_pose = np.array([[1,0,0,0.65], [0,1,0,-0.15], [0,0,1,0.78],[0,0,0,1]])
+    obstacle_pose = np.array([[0,-1,0,0.51], [1,0,0,0.05], [0,0,1,-0.02], [0,0,0,1]])
+    start_object_pose = np.array([[1,0,0,0.55], [0,1,0,-0.15], [0,0,1,0.78], [0,0,0,1]])
+    goal_object_pose = np.array([[1,0,0,0.55], [0,1,0,0.15], [0,0,1,0.78],[0,0,0,1]])
     table_top_pose = np.array([[1, 0, 0, 0.5], [0, 1, 0, 0], [0, 0, 1, 0.78], [0, 0, 0, 1]])
 
     loaded_array = np.load(package_path + "/mesh_dir/cup.npz")
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     )
     
     foliated_planning_framework = FoliatedPlanningFramework()
-    foliated_planning_framework.setMaxAttemptTime(20)
+    foliated_planning_framework.setMaxAttemptTime(2)
     #########################################################
     task_planner = MTGTaskPlanner()
     
@@ -140,10 +140,10 @@ if __name__ == "__main__":
     foliated_planning_framework.setStartAndGoal(
         "approach_object",
         0,
-        [-1.28, 1.51, 0.35, 1.81, 0.0, 1.47, 0.0],
+        INIT_ACTIVE_JOINT_POSITIONS,
         "reset_robot",
         0,
-        [-1.28, 1.51, 0.35, 1.81, 0.0, 1.47, 0.0],
+        INIT_ACTIVE_JOINT_POSITIONS,
     )
 
     planned_solution = foliated_planning_framework.solve()

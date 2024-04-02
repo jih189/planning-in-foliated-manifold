@@ -3,7 +3,7 @@ from foliation_planning.foliated_base_class import (
     BaseIntersectionSampler
 )
 
-from jiaming_helper import construct_moveit_constraint, get_joint_values_from_joint_state
+from jiaming_helper import construct_moveit_constraint, get_joint_values_from_joint_state, END_EFFECTOR_LINK
 from custom_foliated_class import CustomIntersection
 from moveit_msgs.srv import GetJointWithConstraints, GetJointWithConstraintsRequest, GetCartesianPath, GetCartesianPathRequest
 import numpy as np
@@ -15,7 +15,7 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
     def __init__(self, robot, scene):
         self.robot = robot
         self.scene = scene
-        self.joint_names = self.robot.get_group("arm").get_joints()
+        self.joint_names = self.robot.get_group("arm").get_active_joints()
         self.sample_joint_with_constraints_service = rospy.ServiceProxy('/sample_joint_with_constraints', GetJointWithConstraints)
         self.get_cartesian_path_service = rospy.ServiceProxy('/compute_cartesian_path', GetCartesianPath)
 
@@ -154,7 +154,7 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
                     cartesian_path_request.max_step = 0.005
                     cartesian_path_request.jump_threshold = 5.0
                     cartesian_path_request.avoid_collisions = True
-                    cartesian_path_request.link_name = "wrist_roll_link"
+                    cartesian_path_request.link_name = END_EFFECTOR_LINK
 
                     # set header
                     cartesian_path_request.header.frame_id = "base_link"

@@ -9,7 +9,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from ros_numpy import msgify, numpify
 import numpy as np
 
-from jiaming_helper import convert_joint_values_to_robot_state
+from jiaming_helper import convert_joint_values_to_robot_state, END_EFFECTOR_LINK
 
 
 
@@ -112,7 +112,7 @@ class MoveitVisualizer(BaseVisualizer):
                     if has_object_in_hand:
                         fk_request = GetPositionFKRequest()
                         fk_request.header.frame_id = "base_link"
-                        fk_request.fk_link_names = ["wrist_roll_link"]
+                        fk_request.fk_link_names = [END_EFFECTOR_LINK]
                         fk_request.robot_state = current_robot_state_msg.state
 
                         fk_response = self.compute_fk_srv(fk_request)

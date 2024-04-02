@@ -22,21 +22,37 @@ except:
         )
 
 ############################# CONSTANTS #############################
-# Fetch robot constants
-GRIPPER_ROTATION = np.array([[1, 0, 0, -0.17], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+# # Fetch robot constants
+# GRIPPER_ROTATION = np.array([[1, 0, 0, -0.17], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+# INIT_JOINT_NAMES = [
+#         "torso_lift_joint",
+#         "shoulder_pan_joint",
+#         "shoulder_lift_joint",
+#         "upperarm_roll_joint",
+#         "elbow_flex_joint",
+#         "wrist_flex_joint",
+#         "l_gripper_finger_joint",
+#         "r_gripper_finger_joint",
+#     ]
+# INIT_JOINT_POSITIONS = [0.3, -1.28, 1.52, 0.35, 1.81, 1.47, 0.04, 0.04]
+# END_EFFECTOR_LINK = "wrist_roll_link"
+# TOUCH_LINKS = ["l_gripper_finger_link", "r_gripper_finger_link", "gripper_link"]
+# INIT_ACTIVE_JOINT_POSITIONS = [-1.28, 1.51, 0.35, 1.81, 0.0, 1.47, 0.0]
+
+# ur5 robot constants
+GRIPPER_ROTATION = np.array([[0, 0, 1, -0.1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 INIT_JOINT_NAMES = [
-        "torso_lift_joint",
         "shoulder_pan_joint",
-        "shoulder_lift_joint",
-        "upperarm_roll_joint",
-        "elbow_flex_joint",
-        "wrist_flex_joint",
-        "l_gripper_finger_joint",
-        "r_gripper_finger_joint",
+        "shoulder_lift_joint", 
+        "elbow_joint", 
+        "wrist_1_joint", 
+        "wrist_2_joint",
+        "wrist_3_joint"
     ]
-INIT_JOINT_POSITIONS = [0.3, -1.28, 1.52, 0.35, 1.81, 1.47, 0.04, 0.04]
-END_EFFECTOR_LINK = "wrist_roll_link"
-TOUCH_LINKS = ["l_gripper_finger_link", "r_gripper_finger_link", "gripper_link"]
+INIT_JOINT_POSITIONS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+END_EFFECTOR_LINK = "wrist_3_link"
+TOUCH_LINKS = ["flange", "tool0"]
+INIT_ACTIVE_JOINT_POSITIONS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 #####################################################################
 
 # convert a list of joint values to robotTrajectory

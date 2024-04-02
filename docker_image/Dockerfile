@@ -116,12 +116,14 @@ RUN apt-get update -q && \
                        ros-melodic-mbf-costmap-core \
                        ros-melodic-mbf-msgs \
                        ros-melodic-teb-local-planner \
+                       ros-melodic-trac-ik-kinematics-plugin \
                        python-scipy \
                        python-rtree \
                        ros-melodic-ros-numpy \
                        python3-yaml \
                        python3-netifaces \
                        python-tk
+                       
 
 
 # install python3 package required for ROS
