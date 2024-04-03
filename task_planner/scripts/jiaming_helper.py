@@ -39,22 +39,26 @@ except:
 # TOUCH_LINKS = ["l_gripper_finger_link", "r_gripper_finger_link", "gripper_link"]
 # INIT_ACTIVE_JOINT_POSITIONS = [-1.28, 1.51, 0.35, 1.81, 0.0, 1.47, 0.0]
 # FINGER_JOINTS = ["l_gripper_finger_joint", "r_gripper_finger_joint"]
+# PRE_GRASP_POSE = np.array([[1, 0, 0, -0.05], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
 # ur5 robot constants
-GRIPPER_ROTATION = np.array([[0, 0, 1, -0.1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
+GRIPPER_ROTATION = np.array([[0, 0, 1, -0.14], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 INIT_JOINT_NAMES = [
         "shoulder_pan_joint",
         "shoulder_lift_joint", 
         "elbow_joint", 
         "wrist_1_joint", 
         "wrist_2_joint",
-        "wrist_3_joint"
+        "wrist_3_joint",
+        "hande_right_finger_joint", 
+        "hande_left_finger_joint"
     ]
-INIT_JOINT_POSITIONS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+INIT_JOINT_POSITIONS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 END_EFFECTOR_LINK = "wrist_3_link"
-TOUCH_LINKS = ["flange", "tool0"]
+TOUCH_LINKS = ["flange", "tool0", "robotiq_coupler", "hande_link", "hande_right_finger_link", "hande_left_finger_link", "hande_end"]
 INIT_ACTIVE_JOINT_POSITIONS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-FINGER_JOINTS = []
+FINGER_JOINTS = ["hande_right_finger_joint", "hande_left_finger_joint"]
+PRE_GRASP_POSE = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, -0.08], [0, 0, 0, 1]])
 #####################################################################
 
 # convert a list of joint values to robotTrajectory

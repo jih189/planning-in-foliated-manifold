@@ -68,6 +68,26 @@
       </actuator>
     </transmission>
 
+    <transmission name="${prefix}hande_right_finger_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}hande_right_finger_joint">
+        <hardwareInterface>${hw_interface}</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}hande_right_finger_motor">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+
+    <transmission name="${prefix}hande_left_finger_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}hande_left_finger_joint">
+        <hardwareInterface>${hw_interface}</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}hande_left_finger_motor">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+
   </xacro:macro>
 
 </robot>

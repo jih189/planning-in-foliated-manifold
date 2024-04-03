@@ -3,7 +3,7 @@ from foliation_planning.foliated_base_class import (
     BaseIntersectionSampler
 )
 
-from jiaming_helper import construct_moveit_constraint, get_joint_values_from_joint_state, END_EFFECTOR_LINK
+from jiaming_helper import construct_moveit_constraint, get_joint_values_from_joint_state, END_EFFECTOR_LINK, PRE_GRASP_POSE
 from custom_foliated_class import CustomIntersection
 from moveit_msgs.srv import GetJointWithConstraints, GetJointWithConstraintsRequest, GetCartesianPath, GetCartesianPathRequest
 import numpy as np
@@ -140,7 +140,7 @@ class CustomIntersectionSampler(BaseIntersectionSampler):
             if intersection_action == "release" or intersection_action == "grasp":
                 pre_grasp_pose_mat = np.dot(
                     np.dot(placement, np.linalg.inv(grasp)),
-                    np.array([[1, 0, 0, -0.05], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
+                    PRE_GRASP_POSE,
                 )
 
                 pre_grasp_pose = msgify(geometry_msgs.msg.Pose, pre_grasp_pose_mat)
