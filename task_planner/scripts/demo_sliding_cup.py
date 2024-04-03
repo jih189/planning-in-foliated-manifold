@@ -120,7 +120,7 @@ if __name__ == "__main__":
     )
     
     foliated_planning_framework = FoliatedPlanningFramework()
-    foliated_planning_framework.setMaxAttemptTime(2)
+    foliated_planning_framework.setMaxAttemptTime(20)
     #########################################################
     task_planner = MTGTaskPlanner()
     

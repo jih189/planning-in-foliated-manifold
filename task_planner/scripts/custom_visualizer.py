@@ -9,7 +9,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from ros_numpy import msgify, numpify
 import numpy as np
 
-from jiaming_helper import convert_joint_values_to_robot_state, END_EFFECTOR_LINK
+from jiaming_helper import convert_joint_values_to_robot_state, END_EFFECTOR_LINK, FINGER_JOINTS
 
 
 
@@ -45,7 +45,7 @@ class MoveitVisualizer(BaseVisualizer):
     def visualize_plan(self, plan):
         need_to_break = False
         is_gripper_open = True
-        gripper_joint_names = ["l_gripper_finger_joint", "r_gripper_finger_joint"]
+        gripper_joint_names = FINGER_JOINTS
 
         while not rospy.is_shutdown():
             for task_motion in plan:
