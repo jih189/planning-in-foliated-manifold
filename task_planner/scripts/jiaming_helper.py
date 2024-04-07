@@ -55,7 +55,7 @@ INIT_JOINT_NAMES = [
     ]
 INIT_JOINT_POSITIONS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 END_EFFECTOR_LINK = "wrist_3_link"
-TOUCH_LINKS = ["flange", "tool0", "robotiq_coupler", "hande_link", "hande_right_finger_link", "hande_left_finger_link", "hande_end"]
+TOUCH_LINKS = ["flange", "tool0", "robotiq_coupler", "hande_link", "hande_right_finger", "hande_left_finger", "hande_end"]
 INIT_ACTIVE_JOINT_POSITIONS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 FINGER_JOINTS = ["hande_right_finger_joint", "hande_left_finger_joint"]
 PRE_GRASP_POSE = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, -0.08], [0, 0, 0, 1]])
