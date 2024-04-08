@@ -104,12 +104,12 @@ class MTGTaskPlanner(BaseTaskPlanner):
                     break
                 
                 result.append((Task(
-                    self.foliations_set[path[i][0]].constraint_parameters, 
-                    self.foliations_set[path[i][0]].co_parameters[path[i][1]],
-                    [],
-                    sampled_intersections,
-                    False
-                ), (path[i][0], path[i][1], path[i+1][0], path[i+1][1])))
+                    self.foliations_set[path[i][0]].constraint_parameters, # constraint_parameters
+                    self.foliations_set[path[i][0]].co_parameters[path[i][1]], # co_parameters
+                    [], # related experience
+                    sampled_intersections, # intersections to next manifolds
+                    False # use atlas or not
+                ), (path[i][0], path[i][1], path[i+1][0], path[i+1][1]))) # from which manifold to which manifold
 
                 # add penalty to the edge
                 self.add_penalty(
