@@ -20,10 +20,12 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         self.local_foliated_rep_map_template = nx.DiGraph()
         self.gmm_ = gmm
         self.prepare_gmm(gmm)
+        self.foliation_name_map = {}
 
     def prepare_gmm(self, gmm):
         for i in range(len(gmm.distributions)):
-            self.local_foliated_rep_map_template.add_node(i, foliation_name = "", co_parameter_index = -1, weight = 0.0)
+            # valid count and invalid count are for valid configurations and invalid configurations due to constraints. While, invalid_count_for_robot_env is for invalid configurations in the robot environment.
+            self.local_foliated_rep_map_template.add_node(i, foliation_name = "", co_parameter_index = -1, weight = 0.0, valid_count = 0, invalid_count = 0, invalid_count_for_robot_env = 0)
 
         for edge in gmm.edge_of_distribution:
             # this graph is directed, so we need to add two edges
@@ -34,6 +36,15 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         '''
         Generate a local foliated repetition roadmap based on the foliation name and the co-parameter index.
         '''
+        similar_manifolds = []
+        # find the explored manifolds in the same foliation
+        for manifold in self.explored_manifolds_in_foliation:
+            if manifold[0] == foliation_name:
+                similar_manifolds.append(manifold)
+
+        # print "create new manifold ", foliation_name, co_parameter_index
+        # print "with similar manifolds ", similar_manifolds
+
         # clone the local foliated repetition roadmap
         local_foliated_rep_map = copy.deepcopy(self.local_foliated_rep_map_template)
 
@@ -43,6 +54,23 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         
         nx.set_node_attributes(local_foliated_rep_map, foliation_name, "foliation_name")
         nx.set_node_attributes(local_foliated_rep_map, co_parameter_index, "co_parameter_index")
+
+        # update the node's value based on the similar manifolds
+        for _, explored_co_parameter_index in similar_manifolds:
+            for f, c, distribution_id in local_foliated_rep_map.nodes():
+
+                local_foliated_rep_map.nodes[(f, c, distribution_id)]["weight"] += \
+                (
+                    self.total_similiarity_table[foliation_name][co_parameter_index, explored_co_parameter_index] * 
+                    (
+                        0.1 * self.FoliatedRepMap.nodes[(foliation_name, explored_co_parameter_index, distribution_id)]["valid_count"] + 
+                        1.0 * self.FoliatedRepMap.nodes[(foliation_name, explored_co_parameter_index, distribution_id)]["invalid_count"]
+                    ) + 1.0 * self.FoliatedRepMap.nodes[(foliation_name, explored_co_parameter_index, distribution_id)]["invalid_count_for_robot_env"]
+                )
+
+        # update the edge's value by summing the weights of two nodes
+        for u, v in local_foliated_rep_map.edges():
+            local_foliated_rep_map[u][v]["weight"] = local_foliated_rep_map.nodes[u]["weight"] + local_foliated_rep_map.nodes[v]["weight"]
 
         return local_foliated_rep_map
 
@@ -68,6 +96,9 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         if foliation_name not in self.manifolds_in_foliation:
             self.manifolds_in_foliation[foliation_name] = []
         self.manifolds_in_foliation[foliation_name].append((foliation_name, co_parameter_index))
+
+        if foliation_name not in self.foliation_name_map:
+            self.foliation_name_map[foliation_name] = len(self.foliation_name_map)
 
     def add_foliated_intersection(self, foliation1_name, foliation2_name, intersection_detail):
         transition_pairs = self.intersection_rule.find_connected_co_parameters(self.foliations_set[foliation1_name], self.foliations_set[foliation2_name])
@@ -112,6 +143,10 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         '''
         Update the foliated repetition roadmap based on the sampled intersections.
         '''
+
+        if len(sampled_intersections) == 0:
+            return
+
         start_distribution_id_goal_distribution_id_intersection = []
         intersection_edge_configurations = []
         for i in sampled_intersections:
@@ -138,22 +173,22 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
             # if it is one of manifold is new, then construct a local FoliatedRepMap for it.
             if (intersection_start_foliation_name, intersection_start_co_parameter_index) not in self.explored_manifolds_in_foliation:
-                self.explored_manifolds_in_foliation.add((intersection_start_foliation_name, intersection_start_co_parameter_index))
-
                 # combine the new graph with the current FoliatedRepMap
                 self.FoliatedRepMap = nx.compose(
                     self.FoliatedRepMap, 
                     self.generate_local_foliated_rep_map(intersection_start_foliation_name, intersection_start_co_parameter_index)
                 )
 
-            if (intersection_goal_foliation_name, intersection_goal_co_parameter_index) not in self.explored_manifolds_in_foliation:
-                self.explored_manifolds_in_foliation.add((intersection_goal_foliation_name, intersection_goal_co_parameter_index))
+                self.explored_manifolds_in_foliation.add((intersection_start_foliation_name, intersection_start_co_parameter_index))
 
+            if (intersection_goal_foliation_name, intersection_goal_co_parameter_index) not in self.explored_manifolds_in_foliation:
                 # combine the new graph with the current FoliatedRepMap
                 self.FoliatedRepMap = nx.compose(
                     self.FoliatedRepMap, 
                     self.generate_local_foliated_rep_map(intersection_goal_foliation_name, intersection_goal_co_parameter_index)
                 )
+
+                self.explored_manifolds_in_foliation.add((intersection_goal_foliation_name, intersection_goal_co_parameter_index))
 
             # add the intersection between two local foliated RepMap.
             self.FoliatedRepMap.add_edge(
@@ -190,6 +225,8 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
             # return the edges of the shortest path
             for i in range(len(path) - 1):
+
+                # TODO: if the intersection existing, then we should not repeatly sample
 
                 current_sampled_intersections = self.intersection_sampler.generate_configurations_on_intersection(
                     self.foliations_set[path[i][0]],
@@ -232,9 +269,9 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                 self.update_foliated_rep_map(sampled_intersections)
 
                 # find the start node and the goal node in the foliated repetition roadmap
-                start_distribution_id, goal_distribution_id = self.gmm_.get_distribution_indexs([self.start_configuration, self.goal_configuration])
+                start_distribution_id, goal_distribution_id = self.gmm_.get_distribution_indexs([current_start_configuration, self.goal_configuration])
                 
-                start_node = (self.start_foliation_name, self.start_co_parameter_index, start_distribution_id)
+                start_node = (current_foliation_name, current_co_parameter_index, start_distribution_id)
                 goal_node = (self.goal_foliation_name, self.goal_co_parameter_index, goal_distribution_id)
 
                 if nx.has_path(self.FoliatedRepMap, start_node, goal_node):
@@ -259,7 +296,12 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
             current_edge = self.FoliatedRepMap.get_edge_data(node1, node2)
 
+            task_node_experience.append(
+                ((self.foliation_name_map[node1[0]], node1[1], node1[2]), self.gmm_.distributions[node1[2]], [])
+            )
+
             if current_edge["is_intersection"]:
+                
                 # current edge is a transition edge from one manifold to another manifold
                 task = Task(
                     self.foliations_set[node1[0]].constraint_parameters, # constraint_parameters
@@ -268,27 +310,177 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                     [current_edge["intersection"]], # intersection
                     False
                 )
+                task_node_experience = []
                 task_sequence.append((task, (node1[0], node1[1], node2[0], node2[1])))
-            else:
-                # current edge is in the same manifold
-                task_node_experience.append(
-                    (node2, self.gmm_.distributions[node2[2]], [])
-                )
+
+        task_node_experience.append(
+            ((self.foliation_name_map[path_from_foliated_rep_map[-1][0]], path_from_foliated_rep_map[-1][1], path_from_foliated_rep_map[-1][2]), 
+            self.gmm_.distributions[path_from_foliated_rep_map[-1][2]], 
+            [])
+        )
 
         # add the last task
         task = Task(
             self.foliations_set[path_from_foliated_rep_map[-1][0]].constraint_parameters, # constraint_parameters
             self.foliations_set[path_from_foliated_rep_map[-1][0]].co_parameters[path_from_foliated_rep_map[-1][1]], # co_parameters
             task_node_experience, # related experience
-            [], # intersection
+            self.intersection_sampler.generate_final_configuration(self.foliations_set[path_from_foliated_rep_map[-1][0]], path_from_foliated_rep_map[-1][1], self.goal_configuration), # goal configuration
             False
         )
 
-        task_sequence.append((task, (path_from_foliated_rep_map[-1][0], path_from_foliated_rep_map[-1][1], None, None)))
+        task_sequence.append((task, None))
 
         return task_sequence
 
+    def generate_sampled_distribution_tag_table(self, plan):
+        # if sampled data is empty, then skip it.
+        if len(plan[4].verified_motions) == 0:
+            print("sampled data is empty.")
+            return None
 
-    def update(self, mode_transition, success_flag, motion_plan_result, experience, manifold_constraint):
-        #TODO: Implement this function
-        pass
+        sampled_data_numpy = np.array(
+            [sampled_data.sampled_state for sampled_data in plan[4].verified_motions]
+        )
+
+        # if sampled_data_numpy is empty, then skip it.
+        sampled_data_distribution_id = self.gmm_._sklearn_gmm.predict(
+            sampled_data_numpy
+        ).tolist()
+
+        # the task graph info here is the manifold id(foliatino id and co-parameter id) of the current task.
+
+        # initialize a table with number of distributions in GMM times 4.
+        # each row is a distribution in GMM, and each column is a tag of sampled data.
+        # the value in the table is the number of sampled data with the same distribution id and tag.
+        # tag in column 0: collision free
+        # tag in column 1: arm-env collision or out of joint limit
+        # tag in column 2: path constraint violation
+        # tag in column 3: obj-env collision
+        sampled_data_distribution_tag_table = np.zeros(
+            (len(self.gmm_.distributions), 4)
+        )
+
+        # count the number of sampled data with the same distribution id and tag.
+        for i in range(len(sampled_data_distribution_id)):
+            sampled_data_gmm_id = sampled_data_distribution_id[i]
+            sampled_data_tag = plan[4].verified_motions[i].sampled_state_tag
+
+            if sampled_data_tag == 0 or sampled_data_tag == 5:
+                sampled_data_distribution_tag_table[sampled_data_gmm_id][0] += 1
+            elif sampled_data_tag == 1 or sampled_data_tag == 6:
+                sampled_data_distribution_tag_table[sampled_data_gmm_id][1] += 1
+            elif sampled_data_tag == 2 or sampled_data_tag == 7:
+                sampled_data_distribution_tag_table[sampled_data_gmm_id][2] += 1
+            elif sampled_data_tag == 4 or sampled_data_tag == 9:
+                sampled_data_distribution_tag_table[sampled_data_gmm_id][3] += 1
+        return sampled_data_distribution_tag_table
+
+    def update_edge_weight(self, current_foliation_id):
+        '''
+        Update the roadmap's edge in the current folaition id. You may want to do this parallelly.
+        '''
+        # loop over all the edges in the roadmap
+        for u, v, edge_attr in self.FoliatedRepMap.edges(data=True):
+            # if this edge is an intersection edge, then skip it.
+            if edge_attr["is_intersection"]:
+                continue
+            
+            # if the edge is not in the current foliation, then skip it.
+            if u[0] != current_foliation_id or v[0] != current_foliation_id:
+                continue
+
+            # update the edge weight by summing the weight of the nodes.
+            edge_attr["weight"] = self.FoliatedRepMap.nodes[u]["weight"] + self.FoliatedRepMap.nodes[v]["weight"]
+
+    def update_foliated_rep_map_weight(self, n, current_manifold_id, sampled_data_distribution_tag_table):
+        """
+        Update the weight of a node in the task graph.
+        Args:
+            n: the node in the task graph.
+            current_manifold_id: the manifold id of the current task. (foliation id and co-parameter index)
+            sampled_data_distribution_tag_table: a table with shape (number of distributions in GMM, 4).
+        Returns:
+            None
+        """
+
+        if n == "start" or n == "goal":
+            return
+
+        # if not in the same foliation, then continue
+        if n[0] != current_manifold_id[0]:
+            return
+
+        node_foliation_id = n[0]
+        node_co_parameter_id = n[1]
+        node_gmm_id = n[2]
+
+        current_similarity_score = self.total_similiarity_table[node_foliation_id][
+            node_co_parameter_id, current_manifold_id[1]
+        ]
+
+        success_score = (
+            current_similarity_score * sampled_data_distribution_tag_table[node_gmm_id][0] * 0.01
+        )
+
+        arm_env_collision_score = (
+            sampled_data_distribution_tag_table[node_gmm_id][1] * 1.0
+        ) # no current similarity score here due to it is the arm env collision.
+
+        path_constraint_violation_score = (
+            current_similarity_score
+            * sampled_data_distribution_tag_table[node_gmm_id][2]
+            * 1.0
+        )
+
+        obj_env_collision_score = (
+            current_similarity_score
+            * sampled_data_distribution_tag_table[node_gmm_id][3]
+            * 1.0
+        )
+
+        weight_value = (
+            success_score
+            + arm_env_collision_score
+            + path_constraint_violation_score
+            + obj_env_collision_score
+        )
+
+        self.FoliatedRepMap.nodes[n]["weight"] += weight_value
+
+    def update_valid_invalid_counts(self, manifold_id, sampled_data_distribution_tag_table):
+
+        foliation_id = manifold_id[0]
+        co_parameter_index = manifold_id[1]
+
+        for i in range(len(sampled_data_distribution_tag_table)):
+            self.FoliatedRepMap.nodes[(foliation_id, co_parameter_index, i)]["valid_count"] += sampled_data_distribution_tag_table[i][0]
+            self.FoliatedRepMap.nodes[(foliation_id, co_parameter_index, i)]["invalid_count"] += (
+                sampled_data_distribution_tag_table[i][2]
+                + sampled_data_distribution_tag_table[i][3]
+            )
+            self.FoliatedRepMap.nodes[(foliation_id, co_parameter_index, i)]["invalid_count_for_robot_env"] += sampled_data_distribution_tag_table[i][1]
+
+
+    def update(self, mode_transition, success_flag, generated_task_motion, experience, manifold_constraint):
+
+        current_manifold_id = (mode_transition[0], mode_transition[1])
+        # print "update motion transition ", mode_transition
+        # print "current manifold id ", current_manifold_id
+        # print "success flag ", success_flag
+        # print "experience from motion planning"
+        # print "experience size = ", len(experience[4].verified_motions)
+
+        sampled_data_distribution_tag_table = self.generate_sampled_distribution_tag_table(experience)
+
+        if sampled_data_distribution_tag_table is None:
+            return
+
+        # update the valid and invalid counts
+        self.update_valid_invalid_counts(current_manifold_id, sampled_data_distribution_tag_table)
+
+        # only update the weight of nodes in the same manifold with the current task.
+        for n in self.FoliatedRepMap.nodes():
+            self.update_foliated_rep_map_weight(n, current_manifold_id, sampled_data_distribution_tag_table)
+
+        # update the edge weight
+        self.update_edge_weight(current_manifold_id[0])

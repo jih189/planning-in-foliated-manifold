@@ -88,6 +88,9 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         actions_after_goal = [i.get_intersection_action() for i in goal_configurations_with_following_action]
         object_mesh_and_pose_after_goal = [i.get_object_mesh_and_pose() for i in goal_configurations_with_following_action]
 
+        if len(goal_configurations) == 0:
+            raise ValueError("The goal configurations are empty.")
+
         # reset the motion planner
         self.scene.clear()
         self.move_group.clear_path_constraints()
@@ -115,6 +118,32 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         )
 
         distribution_sequence = []
+
+        for node_id, node_distribution, related_node_data in related_experience:
+
+            distribution = SamplingDistribution()
+            distribution.distribution_mean = node_distribution.mean.tolist()
+            distribution.distribution_convariance = (
+                node_distribution.covariance.flatten().tolist()
+            )
+            distribution.foliation_id = node_id[0] # foliation id but here is a string. cause error
+            distribution.co_parameter_id = node_id[1]
+            distribution.distribution_id = node_id[2]
+            distribution.related_co_parameter_index = []
+            distribution.related_beta = []
+            distribution.related_similarity = []
+            for (
+                related_co_parameter_index,
+                related_beta,
+                related_similarity,
+            ) in related_node_data:
+                distribution.related_co_parameter_index.append(
+                    related_co_parameter_index
+                )
+                distribution.related_beta.append(related_beta)
+                distribution.related_similarity.append(related_similarity)
+
+            distribution_sequence.append(distribution)
 
         self.move_group.set_distribution(distribution_sequence)
         self.move_group.set_clean_planning_context_flag(True)
@@ -179,7 +208,7 @@ class MoveitMotionPlanner(BaseMotionPlanner):
                 False, # success flag
                 None, # motion plan result
                 None, # next motion
-                None, # experience
+                motion_plan_result, # experience
                 None, # manifold constraint
                 None, # last configuration
             )
@@ -203,6 +232,10 @@ class MoveitMotionPlanner(BaseMotionPlanner):
                 break
 
         if goal_configuration_index == -1:
+            print "last configuration"
+            print last_configuration
+            print "goal configurations"
+            print goal_configurations
             raise ValueError("The last configuration is not in the goal_configurations.")
 
         # the section returned value should be a BaseTaskMotion
@@ -216,12 +249,13 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         )
 
         if len(motions_after_goal[goal_configuration_index]) == 0:
+            # in the case the following motion of the intersection is empty. For example, to pour water, there is no motion between moving and pouring.
             next_task_motion = None
             return (
                 motion_plan_result[0], # success flag
-                generated_task_motion, # motion plan result
+                generated_task_motion, # generated task motion
                 next_task_motion, # next motion
-                None, # experience
+                motion_plan_result, # experience, experience is stored in motion_plan_result
                 manifold_constraint, # manifold constraint
                 last_configuration # last configuration
             )
@@ -238,9 +272,9 @@ class MoveitMotionPlanner(BaseMotionPlanner):
 
             return (
                 motion_plan_result[0], # success flag
-                generated_task_motion, # motion plan result
+                generated_task_motion, # generated task motion
                 next_task_motion, # next motion
-                None, # experience
+                motion_plan_result, # experience, experience is stored in motion_plan_result
                 manifold_constraint, # manifold constraint
                 motions_after_goal[goal_configuration_index][-1] # last configuration
             )
