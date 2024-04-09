@@ -50,7 +50,7 @@ class MoveitMotionPlanner(BaseMotionPlanner):
         self.move_group = moveit_commander.MoveGroupCommander("arm")
         self.move_group.set_planner_id("CDISTRIBUTIONRRTConfigDefault")
         # self.move_group.set_planner_id('RRTConnectkConfigDefault')
-        self.move_group.set_planning_time(4.0)
+        self.move_group.set_planning_time(1.0)
         self.active_joints = self.move_group.get_active_joints()
 
         # set initial joint state

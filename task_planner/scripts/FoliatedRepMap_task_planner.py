@@ -88,6 +88,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
         # reset the foliated Repetition Roadmap
         self.explored_manifolds_in_foliation = set()
+        self.explored_intersections_in_foliation = set()
         self.FoliatedRepMap = nx.DiGraph()
 
     def add_manifold(self, foliation_name, co_parameter_index):
@@ -226,38 +227,45 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             # return the edges of the shortest path
             for i in range(len(path) - 1):
 
-                # TODO: if the intersection existing, then we should not repeatly sample
+                if (self.foliations_set[path[i][0]], path[i][1],
+                    self.foliations_set[path[i+1][0]], path[i+1][1]) not in self.explored_intersections_in_foliation:
 
-                current_sampled_intersections = self.intersection_sampler.generate_configurations_on_intersection(
-                    self.foliations_set[path[i][0]],
-                    path[i][1],
-                    self.foliations_set[path[i+1][0]],
-                    path[i+1][1],
-                    self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"]
-                )
+                    current_sampled_intersections = self.intersection_sampler.generate_configurations_on_intersection(
+                        self.foliations_set[path[i][0]],
+                        path[i][1],
+                        self.foliations_set[path[i+1][0]],
+                        path[i+1][1],
+                        self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"]
+                    )
 
-                if len(current_sampled_intersections) == 0:
+                    if len(current_sampled_intersections) == 0:
+                        self.add_penalty(
+                            path[i][0],
+                            path[i][1],
+                            path[i+1][0],
+                            path[i+1][1],
+                            10.0
+                        )
+                        found_lead = False
+                        break
+
+                    # mark intersection as explored only if there are intersections.
+                    self.explored_intersections_in_foliation.add(
+                        (self.foliations_set[path[i][0]], path[i][1],
+                        self.foliations_set[path[i+1][0]], path[i+1][1])
+                    )
+
+                    # collect the sampled intersections
+                    sampled_intersections += current_sampled_intersections
+
+                    # add penalty to the edge
                     self.add_penalty(
                         path[i][0],
                         path[i][1],
                         path[i+1][0],
                         path[i+1][1],
-                        10.0
+                        0.1
                     )
-                    found_lead = False
-                    break
-
-                # collect the sampled intersections
-                sampled_intersections += current_sampled_intersections
-
-                # add penalty to the edge
-                self.add_penalty(
-                    path[i][0],
-                    path[i][1],
-                    path[i+1][0],
-                    path[i+1][1],
-                    0.1
-                )
 
             if found_lead:
                 '''
@@ -469,6 +477,25 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         # print "success flag ", success_flag
         # print "experience from motion planning"
         # print "experience size = ", len(experience[4].verified_motions)
+
+        # need to update mode transition roadmap as well
+        if success_flag:
+            self.add_penalty(
+                mode_transition[0],
+                mode_transition[1],
+                mode_transition[2],
+                mode_transition[3],
+                0.1
+            )
+        else:
+            self.add_penalty(
+                mode_transition[0],
+                mode_transition[1],
+                mode_transition[2],
+                mode_transition[3],
+                10.0
+            )
+
 
         sampled_data_distribution_tag_table = self.generate_sampled_distribution_tag_table(experience)
 

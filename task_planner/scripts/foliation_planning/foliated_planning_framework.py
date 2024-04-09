@@ -109,6 +109,11 @@ class FoliatedPlanningFramework:
         current_start_configuration = self.start_configuration
         current_solution_trajectory = []
         found_solution = False
+        print "========================================================================"
+        print "============================ solving problem ==========================="
+        print "========================================================================"
+        print "-"
+        print "-"
 
         for attempt_time in range(self.max_attempt_time):
             # generate the lead sequence which is a list of task with mode transition.
@@ -131,6 +136,11 @@ class FoliatedPlanningFramework:
 
             print "attempt: ", attempt_time, "/", self.max_attempt_time
             print "intersections to next manifolds: ", len(first_task_in_lead_sequence.goal_configurations_with_following_action)
+            # print all goal configurations
+            goal_configurations = [g.get_intersection_motion()[0] for g in first_task_in_lead_sequence.goal_configurations_with_following_action] 
+            print "goal configurations"
+            for g in goal_configurations:
+                print g
             print "first mode transition in sequence: ", first_mode_transition_in_sequence
 
             # plan the motion
