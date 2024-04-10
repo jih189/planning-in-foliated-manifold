@@ -22,6 +22,9 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         self.prepare_gmm(gmm)
         self.foliation_name_map = {}
 
+        self.success_penalty_for_foliated_rep_map = 0.01
+        self.failure_penalty_for_foliated_rep_map = 1.0
+
     def prepare_gmm(self, gmm):
         for i in range(len(gmm.distributions)):
             # valid count and invalid count are for valid configurations and invalid configurations due to constraints. While, invalid_count_for_robot_env is for invalid configurations in the robot environment.
@@ -42,8 +45,8 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             if manifold[0] == foliation_name:
                 similar_manifolds.append(manifold)
 
-        # print "create new manifold ", foliation_name, co_parameter_index
-        # print "with similar manifolds ", similar_manifolds
+        print "create new manifold ", foliation_name, co_parameter_index
+        print "with similar manifolds ", similar_manifolds
 
         # clone the local foliated repetition roadmap
         local_foliated_rep_map = copy.deepcopy(self.local_foliated_rep_map_template)
@@ -57,6 +60,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
         # update the node's value based on the similar manifolds
         for _, explored_co_parameter_index in similar_manifolds:
+
             for f, c, distribution_id in local_foliated_rep_map.nodes():
 
                 local_foliated_rep_map.nodes[(f, c, distribution_id)]["weight"] += \
@@ -427,23 +431,23 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         ]
 
         success_score = (
-            current_similarity_score * sampled_data_distribution_tag_table[node_gmm_id][0] * 0.01
+            current_similarity_score * sampled_data_distribution_tag_table[node_gmm_id][0] * self.success_penalty_for_foliated_rep_map
         )
 
         arm_env_collision_score = (
-            sampled_data_distribution_tag_table[node_gmm_id][1] * 1.0
+            sampled_data_distribution_tag_table[node_gmm_id][1] * self.failure_penalty_for_foliated_rep_map
         ) # no current similarity score here due to it is the arm env collision.
 
         path_constraint_violation_score = (
             current_similarity_score
             * sampled_data_distribution_tag_table[node_gmm_id][2]
-            * 1.0
+            * self.failure_penalty_for_foliated_rep_map
         )
 
         obj_env_collision_score = (
             current_similarity_score
             * sampled_data_distribution_tag_table[node_gmm_id][3]
-            * 1.0
+            * self.failure_penalty_for_foliated_rep_map
         )
 
         weight_value = (

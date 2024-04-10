@@ -117,10 +117,10 @@ class FoliatedPlanningFramework:
 
         for attempt_time in range(self.max_attempt_time):
             # generate the lead sequence which is a list of task with mode transition.
-            print "----------------------------------------------------------"
-            print "current foliation name: ", current_foliation_name
-            print "current co parameter index: ", current_co_parameter_index
-            print "current start configuration: ", current_start_configuration
+            # print "----------------------------------------------------------"
+            # print "current foliation name: ", current_foliation_name
+            # print "current co parameter index: ", current_co_parameter_index
+            # print "current start configuration: ", current_start_configuration
             lead_sequence = self.task_planner.generate_lead_sequence(
                     current_start_configuration, 
                     current_foliation_name, 
@@ -134,14 +134,14 @@ class FoliatedPlanningFramework:
             first_task_in_lead_sequence = lead_sequence[0][0]
             first_mode_transition_in_sequence = lead_sequence[0][1]
 
-            print "attempt: ", attempt_time, "/", self.max_attempt_time
-            print "intersections to next manifolds: ", len(first_task_in_lead_sequence.goal_configurations_with_following_action)
-            # print all goal configurations
-            goal_configurations = [g.get_intersection_motion()[0] for g in first_task_in_lead_sequence.goal_configurations_with_following_action] 
-            print "goal configurations"
-            for g in goal_configurations:
-                print g
-            print "first mode transition in sequence: ", first_mode_transition_in_sequence
+            # print "attempt: ", attempt_time, "/", self.max_attempt_time
+            # print "intersections to next manifolds: ", len(first_task_in_lead_sequence.goal_configurations_with_following_action)
+            # # print all goal configurations
+            # goal_configurations = [g.get_intersection_motion()[0] for g in first_task_in_lead_sequence.goal_configurations_with_following_action] 
+            # print "goal configurations"
+            # for g in goal_configurations:
+            #     print g
+            # print "first mode transition in sequence: ", first_mode_transition_in_sequence
 
             # plan the motion
             (
