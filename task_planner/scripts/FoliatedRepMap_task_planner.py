@@ -45,8 +45,8 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             if manifold[0] == foliation_name:
                 similar_manifolds.append(manifold)
 
-        print "create new manifold ", foliation_name, co_parameter_index
-        print "with similar manifolds ", similar_manifolds
+        # print "create new manifold ", foliation_name, co_parameter_index
+        # print "with similar manifolds ", similar_manifolds
 
         # clone the local foliated repetition roadmap
         local_foliated_rep_map = copy.deepcopy(self.local_foliated_rep_map_template)
@@ -288,16 +288,45 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
                 if nx.has_path(self.FoliatedRepMap, start_node, goal_node):
                     print "Path found in the foliated repetition roadmap"
-                    solution_from_foliated_rep_map = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=goal_node)
+
+                    self.generate_task_with_multi_goals(start_node, goal_node)
 
                     # generate the guidiance to motion planner.
-                    return self.generate_task_sequence(solution_from_foliated_rep_map)
+                    return self.generate_task_sequence(start_node, goal_node)
                 else:
                     print "Not path found in the foliated repetition roadmap, and need to generate more intersections."
 
         return []
 
-    def generate_task_sequence(self, path_from_foliated_rep_map):
+    def generate_task_with_multi_goals(self, start_node, goal_node):
+        print "start node: ", start_node
+        print "goal node: ", goal_node
+
+        # get the distance from start node to goal node
+        start_node_distance = nx.shortest_path_length(self.FoliatedRepMap, source=start_node, target=goal_node, weight="weight")  
+        print "start node distance: ", start_node_distance
+
+        result = []      
+
+        # find all the intersection node in the same manifold of start node.
+        for u, v, is_intersection in self.FoliatedRepMap.edges.data('is_intersection'):
+            if is_intersection:
+                if u[0] == start_node[0] and u[1] == start_node[1]:
+                    print "u: ", u
+                    print "next configuration: ", self.FoliatedRepMap.edges[u, v]["intersection"].intersection_motion[0]
+                    n_distance = nx.shortest_path_length(self.FoliatedRepMap, source=u, target=goal_node, weight="weight")
+                    print "distance: ", n_distance
+
+                    if n_distance < start_node_distance:
+                        result.append(self.FoliatedRepMap.edges[u, v]["intersection"])
+        return result
+
+    def generate_task_sequence(self, start_node, goal_node):
+        '''
+        Generate the task sequence from start node to goal node based on the folaited repetation roadmap.
+        '''
+
+        path_from_foliated_rep_map = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=goal_node)
         
         task_sequence = []
 
