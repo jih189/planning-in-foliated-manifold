@@ -85,8 +85,8 @@ class MoveitMotionPlanner(BaseMotionPlanner):
 
         goal_configurations = [i.get_intersection_motion()[0] for i in goal_configurations_with_following_action]
         motions_after_goal = [i.get_intersection_motion() for i in goal_configurations_with_following_action]
-        actions_after_goal = [i.get_intersection_action() for i in goal_configurations_with_following_action]
         object_mesh_and_pose_after_goal = [i.get_object_mesh_and_pose() for i in goal_configurations_with_following_action]
+        next_manifold_id = [i.get_next_manifold_id() for i in goal_configurations_with_following_action]
 
         if len(goal_configurations) == 0:
             raise ValueError("The goal configurations are empty.")
@@ -211,6 +211,7 @@ class MoveitMotionPlanner(BaseMotionPlanner):
                 motion_plan_result, # experience
                 None, # manifold constraint
                 None, # last configuration
+                None # next manifold id
             )
 
         last_configuration = motion_plan_result[1].joint_trajectory.points[-1].positions
@@ -257,7 +258,9 @@ class MoveitMotionPlanner(BaseMotionPlanner):
                 next_task_motion, # next motion
                 motion_plan_result, # experience, experience is stored in motion_plan_result
                 manifold_constraint, # manifold constraint
-                last_configuration # last configuration
+                last_configuration, # last configuration
+                next_manifold_id[goal_configuration_index] # next manifold id
+                
             )
         else:
             object_mesh_during_action, object_pose_during_action = object_mesh_and_pose_after_goal[goal_configuration_index]
@@ -276,7 +279,8 @@ class MoveitMotionPlanner(BaseMotionPlanner):
                 next_task_motion, # next motion
                 motion_plan_result, # experience, experience is stored in motion_plan_result
                 manifold_constraint, # manifold constraint
-                motions_after_goal[goal_configuration_index][-1] # last configuration
+                motions_after_goal[goal_configuration_index][-1], # last configuration
+                next_manifold_id[goal_configuration_index] # next manifold id
             )
 
     def shutdown_planner(self):

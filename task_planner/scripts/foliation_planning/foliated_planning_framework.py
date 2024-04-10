@@ -108,7 +108,6 @@ class FoliatedPlanningFramework:
         current_co_parameter_index = self.start_co_parameter_index
         current_start_configuration = self.start_configuration
         current_solution_trajectory = []
-        found_solution = False
         print "========================================================================"
         print "============================ solving problem ==========================="
         print "========================================================================"
@@ -122,7 +121,7 @@ class FoliatedPlanningFramework:
             print "current foliation name: ", current_foliation_name
             print "current co parameter index: ", current_co_parameter_index
             print "current start configuration: ", current_start_configuration
-            lead_sequence = self.task_planner.generate_lead_sequence(
+            lead_sequence, is_last_task = self.task_planner.generate_lead_sequence(
                     current_start_configuration, 
                     current_foliation_name, 
                     current_co_parameter_index
@@ -132,15 +131,14 @@ class FoliatedPlanningFramework:
                 # if the lead sequence is empty, it means that there is no solution.
                 return []
 
-            first_task_in_lead_sequence = lead_sequence[0][0]
-            first_mode_transition_in_sequence = lead_sequence[0][1]
+            current_task = lead_sequence[0]
 
             # print all goal configurations
-            goal_configurations = [g.get_intersection_motion()[0] for g in first_task_in_lead_sequence.goal_configurations_with_following_action] 
+            goal_configurations = [g.get_intersection_motion()[0] for g in current_task.goal_configurations_with_following_action] 
             print "goal configurations"
             for g in goal_configurations:
                 print g
-            print "first mode transition in sequence: ", first_mode_transition_in_sequence
+            print "is last task: ", is_last_task
 
             # plan the motion
             (
@@ -150,38 +148,50 @@ class FoliatedPlanningFramework:
                 experience,
                 manifold_constraint,
                 last_configuration, # last configuration of the planned motion.
+                next_manifold_id
             ) = self.motion_planner.plan(
                 current_start_configuration,
-                first_task_in_lead_sequence.goal_configurations_with_following_action, #[i.intersection_action[0] for i in first_task_in_lead_sequence.goal_configurations_with_following_action],
-                first_task_in_lead_sequence.foliation_constraints,
-                first_task_in_lead_sequence.co_parameter,
-                first_task_in_lead_sequence.related_experience,
-                first_task_in_lead_sequence.use_atlas,
+                current_task.goal_configurations_with_following_action, #[i.intersection_action[0] for i in current_task.goal_configurations_with_following_action],
+                current_task.foliation_constraints,
+                current_task.co_parameter,
+                current_task.related_experience,
+                current_task.use_atlas,
             )
 
-            if first_mode_transition_in_sequence is None: # this is the last motion planning task.
-                if success_flag:
-                    # if the solution is found, then we can return the result.
-                    current_solution_trajectory.append(generate_task_motion)
-                    found_solution = True
-                    return current_solution_trajectory
+            if is_last_task and success_flag: # this is the last motion planning task.
+                # if the solution is found, then we can return the result.
+                current_solution_trajectory.append(generate_task_motion)
+                return current_solution_trajectory
+
+            current_mode_transitions = set()
+            # Due to different intersection may lead to different manifolds. If the planning is failed,
+            # then we need to tell the task planner which intersection is for now infeasible.
+            # On the other hand, if the planning is successful, then we need to update the task planner
+            # certain intersection is feasible.
+            if not success_flag:
+                # if planning failed, we need to update the task planner based on all those possible intersections.
+                for i in current_task.goal_configurations_with_following_action:
+                    next_foliation_name, next_co_parameter_index = i.get_next_manifold_id()
+                    current_mode_transitions.add((current_foliation_name, current_co_parameter_index, next_foliation_name, next_co_parameter_index))
+            else:
+                current_mode_transitions.add((current_foliation_name, current_co_parameter_index, next_manifold_id[0], next_manifold_id[1]))
 
             # update the task planner based on the result from motion planner.
-            if first_mode_transition_in_sequence is not None:
-                self.task_planner.update(
-                    first_mode_transition_in_sequence,
-                    success_flag,
-                    generate_task_motion,
-                    experience,
-                    manifold_constraint,
-                )
+            self.task_planner.update(
+                list(current_mode_transitions),
+                success_flag,
+                experience,
+                manifold_constraint,
+            )
 
             if success_flag:
                 # if the motion planning is successful, then we can append the result to the current solution trajectory.
+                print "next manifold id: ", next_manifold_id
+
                 current_solution_trajectory.append(generate_task_motion)
                 current_solution_trajectory.append(next_motion)
-                current_foliation_name = first_mode_transition_in_sequence[2]
-                current_co_parameter_index = first_mode_transition_in_sequence[3]
+                current_foliation_name = next_manifold_id[0]
+                current_co_parameter_index = next_manifold_id[1]
                 current_start_configuration = last_configuration
             else:
                 # if the motion planning is failed, then we need to replan the motion.

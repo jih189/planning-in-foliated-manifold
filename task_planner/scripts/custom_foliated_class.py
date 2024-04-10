@@ -50,6 +50,9 @@ class CustomIntersection(BaseIntersection):
     def get_intersection_motion(self):
         return self.intersection_motion
 
+    def get_next_manifold_id(self):
+        return self.foliation2_name, self.co_parameter2_index
+
     def get_object_mesh_and_pose(self):
         return self.object_mesh_during_action, self.object_pose_during_action
 

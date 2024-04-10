@@ -70,7 +70,7 @@ class MTGTaskPlanner(BaseTaskPlanner):
 
             # check if there is a path between the start and the goal
             if not nx.has_path(self.mode_transition_graph, (current_foliation_name, current_co_parameter_index), (self.goal_foliation_name, self.goal_co_parameter_index)):
-                return []
+                return [], None
 
             # seach for lead sequence
             path = nx.shortest_path(
@@ -103,13 +103,13 @@ class MTGTaskPlanner(BaseTaskPlanner):
                     found_lead = False
                     break
                 
-                result.append((Task(
+                result.append(Task(
                     self.foliations_set[path[i][0]].constraint_parameters, # constraint_parameters
                     self.foliations_set[path[i][0]].co_parameters[path[i][1]], # co_parameters
                     [], # related experience
                     sampled_intersections, # intersections to next manifolds
                     False # use atlas or not
-                ), (path[i][0], path[i][1], path[i+1][0], path[i+1][1]))) # from which manifold to which manifold
+                )) # from which manifold to which manifold
 
                 # add penalty to the edge
                 self.add_penalty(
@@ -123,20 +123,20 @@ class MTGTaskPlanner(BaseTaskPlanner):
             if not found_lead:
                 continue
 
-            result.append((Task(
+            result.append(Task(
                 self.foliations_set[path[-1][0]].constraint_parameters, 
                 self.foliations_set[path[-1][0]].co_parameters[path[-1][1]],
                 [],
                 self.intersection_sampler.generate_final_configuration(self.foliations_set[path[-1][0]], path[-1][1], self.goal_configuration),
                 False
-            ), None))
+            ))
 
             break
         
         if not found_lead:
-            return []
+            return [], None
 
-        return result
+        return result, len(result) == 1
 
     def add_penalty(self, foliation_1, manifold_1_index, foliation_2, manifold_2_index, penalty):
         '''
@@ -154,23 +154,36 @@ class MTGTaskPlanner(BaseTaskPlanner):
                         penalty * self.total_similiarity_table[foliation_1][manifold_1_index][i] * self.total_similiarity_table[foliation_2][manifold_2_index][j]
 
     # MTGTaskPlanner
-    def update(self, mode_transition, success_flag, motion_plan_result, experience, manifold_constraint):
+    def update(self, mode_transitions, success_flag, experience, manifold_constraint):
         # if current task is faled to solve, then we can increate the weight of the edge which is similar to the current task.
         # the similarity is defined as the product of the similarity of the previous manifold, the next manifold, and the current similarity.
-        
-        if success_flag:
-            self.add_penalty(
-                mode_transition[0],
-                mode_transition[1],
-                mode_transition[2],
-                mode_transition[3],
-                0.1
-            )
-        else:
-            self.add_penalty(
-                mode_transition[0],
-                mode_transition[1],
-                mode_transition[2],
-                mode_transition[3],
-                10.0
-            )
+        if len(mode_transitions) == 0:
+            return
+
+        print "update mode transitions: ", mode_transitions
+
+        for mode_transition in mode_transitions:
+            if mode_transition[2] is None and mode_transition[3] is None:
+                # this is the last task, then not need to update.
+                continue
+
+            if mode_transition[0] == mode_transition[2] and mode_transition[1] == mode_transition[3]:
+                # this is the same manifold, then not need to update.
+                continue
+
+            if success_flag:
+                self.add_penalty(
+                    mode_transition[0],
+                    mode_transition[1],
+                    mode_transition[2],
+                    mode_transition[3],
+                    0.1
+                )
+            else:
+                self.add_penalty(
+                    mode_transition[0],
+                    mode_transition[1],
+                    mode_transition[2],
+                    mode_transition[3],
+                    10.0
+                )

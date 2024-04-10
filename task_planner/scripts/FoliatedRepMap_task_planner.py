@@ -216,7 +216,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             # check if there is a path between the start and the goal
             if not nx.has_path(self.mode_transition_graph, (current_foliation_name, current_co_parameter_index), (self.goal_foliation_name, self.goal_co_parameter_index)):
                 print "No path found in the mode transition graph!"
-                return []
+                return [], None
 
             # seach for lead sequence
             path = nx.shortest_path(
@@ -289,37 +289,60 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                 if nx.has_path(self.FoliatedRepMap, start_node, goal_node):
                     print "Path found in the foliated repetition roadmap"
 
-                    self.generate_task_with_multi_goals(start_node, goal_node)
+                    return self.generate_task_with_multi_goals(start_node, goal_node), (start_node[0] == goal_node[0] and start_node[1] == goal_node[1])
 
                     # generate the guidiance to motion planner.
-                    return self.generate_task_sequence(start_node, goal_node)
+                    # return self.generate_task_sequence(start_node, goal_node), (start_node[0] == goal_node[0] and start_node[1] == goal_node[1])
                 else:
                     print "Not path found in the foliated repetition roadmap, and need to generate more intersections."
 
-        return []
+        return [], None
 
     def generate_task_with_multi_goals(self, start_node, goal_node):
-        print "start node: ", start_node
-        print "goal node: ", goal_node
+        # print "start node: ", start_node
+        # print "goal node: ", goal_node
 
         # get the distance from start node to goal node
         start_node_distance = nx.shortest_path_length(self.FoliatedRepMap, source=start_node, target=goal_node, weight="weight")  
         print "start node distance: ", start_node_distance
 
-        result = []      
+        next_intersections = []      
+        related_nodes = set()
 
         # find all the intersection node in the same manifold of start node.
         for u, v, is_intersection in self.FoliatedRepMap.edges.data('is_intersection'):
             if is_intersection:
                 if u[0] == start_node[0] and u[1] == start_node[1]:
-                    print "u: ", u
-                    print "next configuration: ", self.FoliatedRepMap.edges[u, v]["intersection"].intersection_motion[0]
-                    n_distance = nx.shortest_path_length(self.FoliatedRepMap, source=u, target=goal_node, weight="weight")
-                    print "distance: ", n_distance
+                    # check if reachable
+                    if not nx.has_path(self.FoliatedRepMap, source=u, target=goal_node):
+                        continue
 
+                    # only consider the intersection node that is closer to the goal node.
+                    n_distance = nx.shortest_path_length(self.FoliatedRepMap, source=u, target=goal_node, weight="weight")
+                    print "n: ", u, " with distance ", n_distance 
                     if n_distance < start_node_distance:
-                        result.append(self.FoliatedRepMap.edges[u, v]["intersection"])
-        return result
+                        next_intersections.append(self.FoliatedRepMap.edges[u, v]["intersection"])
+                        nodes_to_next = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=u, weight="weight")
+                        for exp_n in nodes_to_next:
+                            related_nodes.add(exp_n)
+
+        task_node_experience = []
+        for exp_n in list(related_nodes):
+            task_node_experience.append(
+                ((self.foliation_name_map[exp_n[0]], exp_n[1], exp_n[2]), self.gmm_.distributions[exp_n[2]], [])
+            )
+
+        task = Task(
+            self.foliations_set[start_node[0]].constraint_parameters, # constraint_parameters
+            self.foliations_set[start_node[0]].co_parameters[start_node[1]], # co_parameters
+            task_node_experience, # related experience
+            next_intersections, # intersection
+            False
+        )
+
+        # print "current mode transition ", 
+
+        return [(task, (start_node[0], start_node[1], None, None))]
 
     def generate_task_sequence(self, start_node, goal_node):
         '''
@@ -369,7 +392,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             False
         )
 
-        task_sequence.append((task, None))
+        task_sequence.append((task, (path_from_foliated_rep_map[-1][0], path_from_foliated_rep_map[-1][1],None, None)))
 
         return task_sequence
 
@@ -502,7 +525,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             self.FoliatedRepMap.nodes[(foliation_id, co_parameter_index, i)]["invalid_count_for_robot_env"] += sampled_data_distribution_tag_table[i][1]
 
 
-    def update(self, mode_transition, success_flag, generated_task_motion, experience, manifold_constraint):
+    def update(self, mode_transition, success_flag, experience, manifold_constraint):
 
         current_manifold_id = (mode_transition[0], mode_transition[1])
         # print "update motion transition ", mode_transition
@@ -512,22 +535,23 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         # print "experience size = ", len(experience[4].verified_motions)
 
         # need to update mode transition roadmap as well
-        if success_flag:
-            self.add_penalty(
-                mode_transition[0],
-                mode_transition[1],
-                mode_transition[2],
-                mode_transition[3],
-                0.1
-            )
-        else:
-            self.add_penalty(
-                mode_transition[0],
-                mode_transition[1],
-                mode_transition[2],
-                mode_transition[3],
-                10.0
-            )
+        if mode_transition[2] is not None and mode_transition[3] is not None:
+            if success_flag:
+                self.add_penalty(
+                    mode_transition[0],
+                    mode_transition[1],
+                    mode_transition[2],
+                    mode_transition[3],
+                    0.1
+                )
+            else:
+                self.add_penalty(
+                    mode_transition[0],
+                    mode_transition[1],
+                    mode_transition[2],
+                    mode_transition[3],
+                    10.0
+                )
 
 
         sampled_data_distribution_tag_table = self.generate_sampled_distribution_tag_table(experience)

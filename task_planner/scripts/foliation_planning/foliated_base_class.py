@@ -352,7 +352,7 @@ class BaseTaskPlanner:
         raise NotImplementedError("Please Implement this method")
 
     @abstractmethod
-    def update(self, mode_transition_, success_flag_, motion_plan_result_, planning_experience_, manifold_constraint_):
+    def update(self, mode_transition_, success_flag_, planning_experience_, manifold_constraint_):
         """
         update task planner
         """

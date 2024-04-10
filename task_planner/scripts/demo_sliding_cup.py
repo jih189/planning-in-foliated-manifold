@@ -122,13 +122,13 @@ if __name__ == "__main__":
     foliated_planning_framework = FoliatedPlanningFramework()
     foliated_planning_framework.setMaxAttemptTime(20)
     #########################################################
-    # task_planner = MTGTaskPlanner()
+    task_planner = MTGTaskPlanner()
     
-    # load the gmm
-    gmm_dir_path = package_path + "/computed_gmms_dir/dpgmm/"
-    gmm = GMM()
-    gmm.load_distributions(gmm_dir_path)
-    task_planner = FoliatedRepMapTaskPlanner(gmm)
+    # # load the gmm
+    # gmm_dir_path = package_path + "/computed_gmms_dir/dpgmm/"
+    # gmm = GMM()
+    # gmm.load_distributions(gmm_dir_path)
+    # task_planner = FoliatedRepMapTaskPlanner(gmm)
     #########################################################
     foliated_planning_framework.setTaskPlanner(task_planner)
     motion_planner = MoveitMotionPlanner()
