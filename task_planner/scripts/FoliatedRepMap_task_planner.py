@@ -186,6 +186,9 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
                 self.explored_manifolds_in_foliation.add((intersection_start_foliation_name, intersection_start_co_parameter_index))
 
+                # update the edge weight
+                self.update_edge_weight(intersection_start_foliation_name)
+
             if (intersection_goal_foliation_name, intersection_goal_co_parameter_index) not in self.explored_manifolds_in_foliation:
                 # combine the new graph with the current FoliatedRepMap
                 self.FoliatedRepMap = nx.compose(
@@ -195,12 +198,15 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
                 self.explored_manifolds_in_foliation.add((intersection_goal_foliation_name, intersection_goal_co_parameter_index))
 
+                self.update_edge_weight(intersection_goal_foliation_name)
+
             # add the intersection between two local foliated RepMap.
             self.FoliatedRepMap.add_edge(
                 (intersection_start_foliation_name, intersection_start_co_parameter_index, intersection_start_distribution_id),
                 (intersection_goal_foliation_name, intersection_goal_co_parameter_index, intersection_goal_distribution_id),
                 is_intersection = True,
-                intersection = sampled_intersections[i]
+                intersection = sampled_intersections[i],
+                weight = 0.1
             )
 
     def generate_lead_sequence(self, current_start_configuration, current_foliation_name, current_co_parameter_index):
@@ -294,6 +300,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                     # generate the guidiance to motion planner.
                     # return self.generate_task_sequence(start_node, goal_node), (start_node[0] == goal_node[0] and start_node[1] == goal_node[1])
                 else:
+                    print "start node: ", start_node, "goal node: ", goal_node
                     print "Not path found in the foliated repetition roadmap, and need to generate more intersections."
 
         return [], None
@@ -302,99 +309,120 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         # print "start node: ", start_node
         # print "goal node: ", goal_node
 
-        # get the distance from start node to goal node
-        start_node_distance = nx.shortest_path_length(self.FoliatedRepMap, source=start_node, target=goal_node, weight="weight")  
-        print "start node distance: ", start_node_distance
+        # if start node and goal node are in the same manifold
+        if start_node[0] == goal_node[0] and start_node[1] == goal_node[1]:
+            # you should have only one goal in this case
+            nodes_to_goal = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=goal_node, weight="weight")
 
-        next_intersections = []      
-        related_nodes = set()
-
-        # find all the intersection node in the same manifold of start node.
-        for u, v, is_intersection in self.FoliatedRepMap.edges.data('is_intersection'):
-            if is_intersection:
-                if u[0] == start_node[0] and u[1] == start_node[1]:
-                    # check if reachable
-                    if not nx.has_path(self.FoliatedRepMap, source=u, target=goal_node):
-                        continue
-
-                    # only consider the intersection node that is closer to the goal node.
-                    n_distance = nx.shortest_path_length(self.FoliatedRepMap, source=u, target=goal_node, weight="weight")
-                    print "n: ", u, " with distance ", n_distance 
-                    if n_distance < start_node_distance:
-                        next_intersections.append(self.FoliatedRepMap.edges[u, v]["intersection"])
-                        nodes_to_next = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=u, weight="weight")
-                        for exp_n in nodes_to_next:
-                            related_nodes.add(exp_n)
-
-        task_node_experience = []
-        for exp_n in list(related_nodes):
-            task_node_experience.append(
-                ((self.foliation_name_map[exp_n[0]], exp_n[1], exp_n[2]), self.gmm_.distributions[exp_n[2]], [])
-            )
-
-        task = Task(
-            self.foliations_set[start_node[0]].constraint_parameters, # constraint_parameters
-            self.foliations_set[start_node[0]].co_parameters[start_node[1]], # co_parameters
-            task_node_experience, # related experience
-            next_intersections, # intersection
-            False
-        )
-
-        # print "current mode transition ", 
-
-        return [(task, (start_node[0], start_node[1], None, None))]
-
-    def generate_task_sequence(self, start_node, goal_node):
-        '''
-        Generate the task sequence from start node to goal node based on the folaited repetation roadmap.
-        '''
-
-        path_from_foliated_rep_map = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=goal_node)
-        
-        task_sequence = []
-
-        task_start_configuration = self.start_configuration
-        task_node_experience = [] # each element is a tuple (node_id, distribution, list_of_related_nodes) This list of related nodes is used for Atlas.
-
-        for node1, node2 in zip(path_from_foliated_rep_map[:-1], path_from_foliated_rep_map[1:]):
-
-            current_edge = self.FoliatedRepMap.get_edge_data(node1, node2)
-
-            task_node_experience.append(
-                ((self.foliation_name_map[node1[0]], node1[1], node1[2]), self.gmm_.distributions[node1[2]], [])
-            )
-
-            if current_edge["is_intersection"]:
-                
-                # current edge is a transition edge from one manifold to another manifold
-                task = Task(
-                    self.foliations_set[node1[0]].constraint_parameters, # constraint_parameters
-                    self.foliations_set[node1[0]].co_parameters[node1[1]], # co_parameters
-                    task_node_experience, # related experience
-                    [current_edge["intersection"]], # intersection
-                    False
+            task_node_experience = []
+            for exp_n in nodes_to_goal:
+                task_node_experience.append(
+                    ((self.foliation_name_map[exp_n[0]], exp_n[1], exp_n[2]), self.gmm_.distributions[exp_n[2]], [])
                 )
-                task_node_experience = []
-                task_sequence.append((task, (node1[0], node1[1], node2[0], node2[1])))
 
-        task_node_experience.append(
-            ((self.foliation_name_map[path_from_foliated_rep_map[-1][0]], path_from_foliated_rep_map[-1][1], path_from_foliated_rep_map[-1][2]), 
-            self.gmm_.distributions[path_from_foliated_rep_map[-1][2]], 
-            [])
-        )
+            task = Task(
+                self.foliations_set[start_node[0]].constraint_parameters, # constraint_parameters
+                self.foliations_set[start_node[0]].co_parameters[start_node[1]], # co_parameters
+                task_node_experience, # related experience
+                self.intersection_sampler.generate_final_configuration(self.foliations_set[goal_node[0]], goal_node[1], self.goal_configuration), # intersection
+                False
+            )
 
-        # add the last task
-        task = Task(
-            self.foliations_set[path_from_foliated_rep_map[-1][0]].constraint_parameters, # constraint_parameters
-            self.foliations_set[path_from_foliated_rep_map[-1][0]].co_parameters[path_from_foliated_rep_map[-1][1]], # co_parameters
-            task_node_experience, # related experience
-            self.intersection_sampler.generate_final_configuration(self.foliations_set[path_from_foliated_rep_map[-1][0]], path_from_foliated_rep_map[-1][1], self.goal_configuration), # goal configuration
-            False
-        )
+            return [task]
+        else:
+            # compute the distance for all nodes to the goal node
+            distance_to_goal_map = dict(nx.single_source_dijkstra_path_length(self.FoliatedRepMap.reverse(), source=goal_node, weight="weight"))
 
-        task_sequence.append((task, (path_from_foliated_rep_map[-1][0], path_from_foliated_rep_map[-1][1],None, None)))
+            next_intersections = []      
+            related_nodes = set()
 
-        return task_sequence
+            # find all the intersection node in the same manifold of start node.
+            for u, v, is_intersection in self.FoliatedRepMap.edges.data('is_intersection'):
+                if is_intersection:
+
+                    # find all intersection leaving from the manifold where start node is in.
+                    if u[0] == start_node[0] and u[1] == start_node[1]:
+
+                        # check if reachable
+                        if u not in distance_to_goal_map or v not in distance_to_goal_map:
+                            continue
+                        
+                        # only consider the intersection node leading to closer to the goal node.
+                        if distance_to_goal_map[u] > distance_to_goal_map[v]:
+                            next_intersections.append(self.FoliatedRepMap.edges[u, v]["intersection"])
+                            nodes_to_next = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=u, weight="weight")
+                            for exp_n in nodes_to_next:
+                                related_nodes.add(exp_n)
+
+            task_node_experience = []
+            for exp_n in list(related_nodes):
+                task_node_experience.append(
+                    ((self.foliation_name_map[exp_n[0]], exp_n[1], exp_n[2]), self.gmm_.distributions[exp_n[2]], [])
+                )
+
+            task = Task(
+                self.foliations_set[start_node[0]].constraint_parameters, # constraint_parameters
+                self.foliations_set[start_node[0]].co_parameters[start_node[1]], # co_parameters
+                task_node_experience, # related experience
+                next_intersections, # intersection
+                False
+            )
+
+            # print "current mode transition ", 
+
+            return [task]
+
+    # def generate_task_sequence(self, start_node, goal_node):
+    #     '''
+    #     Generate the task sequence from start node to goal node based on the folaited repetation roadmap.
+    #     '''
+
+    #     path_from_foliated_rep_map = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=goal_node)
+        
+    #     task_sequence = []
+
+    #     task_start_configuration = self.start_configuration
+    #     task_node_experience = [] # each element is a tuple (node_id, distribution, list_of_related_nodes) This list of related nodes is used for Atlas.
+
+    #     for node1, node2 in zip(path_from_foliated_rep_map[:-1], path_from_foliated_rep_map[1:]):
+
+    #         current_edge = self.FoliatedRepMap.get_edge_data(node1, node2)
+
+    #         task_node_experience.append(
+    #             ((self.foliation_name_map[node1[0]], node1[1], node1[2]), self.gmm_.distributions[node1[2]], [])
+    #         )
+
+    #         if current_edge["is_intersection"]:
+                
+    #             # current edge is a transition edge from one manifold to another manifold
+    #             task = Task(
+    #                 self.foliations_set[node1[0]].constraint_parameters, # constraint_parameters
+    #                 self.foliations_set[node1[0]].co_parameters[node1[1]], # co_parameters
+    #                 task_node_experience, # related experience
+    #                 [current_edge["intersection"]], # intersection
+    #                 False
+    #             )
+    #             task_node_experience = []
+    #             task_sequence.append((task, (node1[0], node1[1], node2[0], node2[1])))
+
+    #     task_node_experience.append(
+    #         ((self.foliation_name_map[path_from_foliated_rep_map[-1][0]], path_from_foliated_rep_map[-1][1], path_from_foliated_rep_map[-1][2]), 
+    #         self.gmm_.distributions[path_from_foliated_rep_map[-1][2]], 
+    #         [])
+    #     )
+
+    #     # add the last task
+    #     task = Task(
+    #         self.foliations_set[path_from_foliated_rep_map[-1][0]].constraint_parameters, # constraint_parameters
+    #         self.foliations_set[path_from_foliated_rep_map[-1][0]].co_parameters[path_from_foliated_rep_map[-1][1]], # co_parameters
+    #         task_node_experience, # related experience
+    #         self.intersection_sampler.generate_final_configuration(self.foliations_set[path_from_foliated_rep_map[-1][0]], path_from_foliated_rep_map[-1][1], self.goal_configuration), # goal configuration
+    #         False
+    #     )
+
+    #     task_sequence.append((task, (path_from_foliated_rep_map[-1][0], path_from_foliated_rep_map[-1][1],None, None)))
+
+    #     return task_sequence
 
     def generate_sampled_distribution_tag_table(self, plan):
         # if sampled data is empty, then skip it.
@@ -443,6 +471,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         '''
         Update the roadmap's edge in the current folaition id. You may want to do this parallelly.
         '''
+
         # loop over all the edges in the roadmap
         for u, v, edge_attr in self.FoliatedRepMap.edges(data=True):
             # if this edge is an intersection edge, then skip it.
@@ -454,7 +483,8 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                 continue
 
             # update the edge weight by summing the weight of the nodes.
-            edge_attr["weight"] = self.FoliatedRepMap.nodes[u]["weight"] + self.FoliatedRepMap.nodes[v]["weight"]
+            # edge_attr["weight"] = self.FoliatedRepMap.nodes[u]["weight"] + self.FoliatedRepMap.nodes[v]["weight"] + 1 # add a small value to avoid zero weight.
+            self.FoliatedRepMap.edges[u, v]["weight"] = self.FoliatedRepMap.nodes[u]["weight"] + self.FoliatedRepMap.nodes[v]["weight"] + 0.01
 
     def update_foliated_rep_map_weight(self, n, current_manifold_id, sampled_data_distribution_tag_table):
         """
@@ -525,17 +555,31 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             self.FoliatedRepMap.nodes[(foliation_id, co_parameter_index, i)]["invalid_count_for_robot_env"] += sampled_data_distribution_tag_table[i][1]
 
 
-    def update(self, mode_transition, success_flag, experience, manifold_constraint):
+    def update(self, mode_transitions, success_flag, experience, manifold_constraint):
 
-        current_manifold_id = (mode_transition[0], mode_transition[1])
         # print "update motion transition ", mode_transition
         # print "current manifold id ", current_manifold_id
         # print "success flag ", success_flag
         # print "experience from motion planning"
         # print "experience size = ", len(experience[4].verified_motions)
 
-        # need to update mode transition roadmap as well
-        if mode_transition[2] is not None and mode_transition[3] is not None:
+        if len(mode_transitions) == 0:
+            return
+
+        print "update mode transitions: ", mode_transitions
+
+        for mode_transition in mode_transitions:
+
+            current_manifold_id = (mode_transition[0], mode_transition[1])
+
+            if mode_transition[2] is None and mode_transition[3] is None:
+                # this is the last task, then not need to update.
+                continue
+
+            if mode_transition[0] == mode_transition[2] and mode_transition[1] == mode_transition[3]:
+                # this is the same manifold, then not need to update.
+                continue
+
             if success_flag:
                 self.add_penalty(
                     mode_transition[0],
