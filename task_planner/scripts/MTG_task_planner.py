@@ -14,8 +14,24 @@ class MTGTaskPlanner(BaseTaskPlanner):
         self.planner_name = planner_name_
         self.parameter_dict = parameter_dict_
 
+        self.mode_transition_graph = None
+        self.manifolds_in_foliation = None
+        self.transition_maps = None
+
     # MTGTaskPlanner
     def reset_task_planner(self):
+        
+        # clear for the memory.
+        if self.mode_transition_graph is not None:
+            self.mode_transition_graph.clear()
+            del self.mode_transition_graph
+        if self.manifolds_in_foliation is not None:
+            self.manifolds_in_foliation.clear()
+            del self.manifolds_in_foliation
+        if self.transition_maps is not None:
+            self.transition_maps.clear()
+            del self.transition_maps
+
         self.mode_transition_graph = nx.Graph()
         self.manifolds_in_foliation = {} # {foliation_name: [manifold1, manifold2, ...]}
         self.transition_maps = {} # {(foliation1_name, foliation2_name): [(manifold1, manifold2), ...]}
@@ -160,7 +176,7 @@ class MTGTaskPlanner(BaseTaskPlanner):
         if len(mode_transitions) == 0:
             return
 
-        print "update mode transitions: ", mode_transitions
+        # print "update mode transitions: ", mode_transitions
 
         for mode_transition in mode_transitions:
             if mode_transition[2] is None and mode_transition[3] is None:

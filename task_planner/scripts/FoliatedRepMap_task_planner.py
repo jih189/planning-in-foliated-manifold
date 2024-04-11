@@ -25,6 +25,13 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         self.success_penalty_for_foliated_rep_map = 0.01
         self.failure_penalty_for_foliated_rep_map = 1.0
 
+        self.mode_transition_graph = None
+        self.manifolds_in_foliation = None
+        self.transition_maps = None
+        self.explored_manifolds_in_foliation = None
+        self.explored_intersections_in_foliation = None
+        self.FoliatedRepMap = None
+
     def prepare_gmm(self, gmm):
         for i in range(len(gmm.distributions)):
             # valid count and invalid count are for valid configurations and invalid configurations due to constraints. While, invalid_count_for_robot_env is for invalid configurations in the robot environment.
@@ -79,6 +86,27 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         return local_foliated_rep_map
 
     def reset_task_planner(self):
+
+        # need to clear memory.
+        if self.mode_transition_graph is not None:
+            self.mode_transition_graph.clear()
+            del self.mode_transition_graph
+        if self.manifolds_in_foliation is not None:
+            self.manifolds_in_foliation.clear()
+            del self.manifolds_in_foliation
+        if self.transition_maps is not None:
+            self.transition_maps.clear()
+            del self.transition_maps
+        if self.explored_manifolds_in_foliation is not None:
+            self.explored_manifolds_in_foliation.clear()
+            del self.explored_manifolds_in_foliation
+        if self.explored_intersections_in_foliation is not None:
+            self.explored_intersections_in_foliation.clear()
+            del self.explored_intersections_in_foliation
+        if self.FoliatedRepMap is not None:
+            self.FoliatedRepMap.clear()
+            del self.FoliatedRepMap
+
         self.mode_transition_graph = nx.Graph()
         self.manifolds_in_foliation = {} # {foliation_name: [manifold1, manifold2, ...]}
         self.transition_maps = {} # {(foliation1_name, foliation2_name): [(manifold1, manifold2), ...]}
@@ -293,7 +321,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                 goal_node = (self.goal_foliation_name, self.goal_co_parameter_index, goal_distribution_id)
 
                 if nx.has_path(self.FoliatedRepMap, start_node, goal_node):
-                    print "Path found in the foliated repetition roadmap"
+                    # print "Path found in the foliated repetition roadmap"
 
                     return self.generate_task_with_multi_goals(start_node, goal_node), (start_node[0] == goal_node[0] and start_node[1] == goal_node[1])
 
@@ -566,7 +594,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         if len(mode_transitions) == 0:
             return
 
-        print "update mode transitions: ", mode_transitions
+        # print "update mode transitions: ", mode_transitions
 
         for mode_transition in mode_transitions:
 

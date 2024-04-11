@@ -16,12 +16,41 @@ from custom_visualizer import MoveitVisualizer
 from geometry_msgs.msg import Pose
 from jiaming_GMM import GMM
 
+import tqdm
+import time
+
 def get_position_difference_between_poses(pose_1_, pose_2_):
     """
     Get the position difference between two poses.
     pose_1_ and pose_2_ are both 4x4 numpy matrices.
     """
     return np.linalg.norm(pose_1_[:3, 3] - pose_2_[:3, 3])
+
+def get_path_length(plan):
+
+    plan_length = 0.0
+    solution_path = []
+
+    for task_motion in plan:
+        if task_motion is None:
+            continue
+        (
+            motion_trajectory,
+            has_object_in_hand,
+            object_pose,
+            object_mesh_path,
+            obstacle_pose,
+            obstacle_mesh_path,
+        ) = task_motion.get()
+
+        for p in motion_trajectory.joint_trajectory.points:
+            solution_path.append(p.positions)
+
+    # given a solution path, calculate the path length
+    for i in range(len(solution_path) - 1):
+        plan_length += np.linalg.norm(np.array(solution_path[i]) - np.array(solution_path[i + 1]))
+
+    return plan_length
 
 if __name__ == "__main__":
     rospy.init_node("demo_node", anonymous=True)
@@ -122,21 +151,25 @@ if __name__ == "__main__":
     foliated_planning_framework = FoliatedPlanningFramework()
     foliated_planning_framework.setMaxAttemptTime(20)
     #########################################################
-    # task_planner = MTGTaskPlanner()
-    
+    # prepare the task planners
+    task_planners = []
+
+    MTG_task_planner = MTGTaskPlanner()
+    task_planners.append(MTG_task_planner)
+
     # load the gmm
     gmm_dir_path = package_path + "/computed_gmms_dir/dpgmm/"
     gmm = GMM()
     gmm.load_distributions(gmm_dir_path)
-    task_planner = FoliatedRepMapTaskPlanner(gmm)
+    FoliatedRepMap_task_planner = FoliatedRepMapTaskPlanner(gmm)
+    task_planners.append(FoliatedRepMap_task_planner)
     #########################################################
-    foliated_planning_framework.setTaskPlanner(task_planner)
+    
     motion_planner = MoveitMotionPlanner()
     intersection_sampler = CustomIntersectionSampler(motion_planner.robot, motion_planner.scene)
     foliated_planning_framework.setIntersectionSampler(intersection_sampler)
     foliated_planning_framework.setMotionPlanner(motion_planner)
     foliated_planning_framework.setFoliatedProblem(foliation_problem)
-
     foliated_planning_framework.setStartAndGoal(
         "approach_object",
         0,
@@ -146,12 +179,48 @@ if __name__ == "__main__":
         INIT_ACTIVE_JOINT_POSITIONS,
     )
 
-    planned_solution = foliated_planning_framework.solve()
+    total_attempts = 5
+    task_planners_name = []
+    task_planners_average_planning_time = []
+    task_planners_average_planning_length = []
+    task_planners_success_rate = []
 
-    if len(planned_solution) > 0:
-        print("Planned solution is found.")
-        visualizer = MoveitVisualizer()
-        visualizer.prepare_visualizer(motion_planner.active_joints, motion_planner.robot)
-        visualizer.visualize_plan(planned_solution)
-    else:
-        print("No solution is found.")
+    for task_planner in task_planners:
+
+        foliated_planning_framework.setTaskPlanner(task_planner)
+        total_planning_time = 0.0
+        total_planning_length = 0.0
+        total_planning_success = 0
+
+        for _ in tqdm.tqdm(range(total_attempts), desc="Evaluating task planner: " + task_planner.planner_name):
+
+            start_time = time.time()
+            solution_path = foliated_planning_framework.evaluation()
+            planning_time = time.time() - start_time
+            if len(solution_path) == 0:
+                # failed to find a solution
+                pass
+            else:
+                solution_path_length = get_path_length(solution_path)
+                total_planning_time += planning_time
+                total_planning_length += solution_path_length
+                total_planning_success += 1
+
+        task_planners_name.append(task_planner.planner_name)
+        if total_planning_success == 0:
+            task_planners_average_planning_time.append(0.0)
+            task_planners_average_planning_length.append(0.0)
+            task_planners_success_rate.append(0.0)
+        else:
+            task_planners_average_planning_time.append(total_planning_time / total_planning_success)
+            task_planners_average_planning_length.append(total_planning_length / total_planning_success)
+            task_planners_success_rate.append(float(total_planning_success) / total_attempts)
+
+    print("Evaluation results:")
+    for task_planner_name, task_planner_average_planning_time, task_planner_average_planning_length, task_planner_success_rate in zip(task_planners_name, task_planners_average_planning_time, task_planners_average_planning_length, task_planners_success_rate):
+        print("Task planner: ", task_planner_name)
+        print("Average planning time: ", task_planner_average_planning_time)
+        print("Average planning length: ", task_planner_average_planning_length)
+        print("Success rate: ", task_planner_success_rate)
+        print("=====================================")
+    print ("Done!")
