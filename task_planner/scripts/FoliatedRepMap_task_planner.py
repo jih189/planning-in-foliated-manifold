@@ -71,11 +71,12 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
                 local_foliated_rep_map.nodes[(f, c, distribution_id)]["weight"] += \
                 (
+                    related_node = self.FoliatedRepMap.nodes[(foliation_name, explored_co_parameter_index, distribution_id)]
                     self.total_similiarity_table[foliation_name][co_parameter_index, explored_co_parameter_index] * 
                     (
-                        0.1 * self.FoliatedRepMap.nodes[(foliation_name, explored_co_parameter_index, distribution_id)]["valid_count"] + 
-                        1.0 * self.FoliatedRepMap.nodes[(foliation_name, explored_co_parameter_index, distribution_id)]["invalid_count"]
-                    ) + 1.0 * self.FoliatedRepMap.nodes[(foliation_name, explored_co_parameter_index, distribution_id)]["invalid_count_for_robot_env"]
+                        self.success_penalty_for_foliated_rep_map * related_node["valid_count"] + 
+                        self.failure_penalty_for_foliated_rep_map * related_node["invalid_count"]
+                    ) + self.failure_penalty_for_foliated_rep_map * related_node["invalid_count_for_robot_env"]
                 )
 
         # update the edge's value by summing the weights of two nodes
@@ -509,9 +510,6 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         Returns:
             None
         """
-
-        if n == "start" or n == "goal":
-            return
 
         # if not in the same foliation, then continue
         if n[0] != current_manifold_id[0]:
