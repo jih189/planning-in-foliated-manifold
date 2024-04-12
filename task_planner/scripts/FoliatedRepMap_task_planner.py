@@ -29,7 +29,6 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         self.manifolds_in_foliation = None
         self.transition_maps = None
         self.explored_manifolds_in_foliation = None
-        self.explored_intersections_in_foliation = None
         self.FoliatedRepMap = None
 
     def prepare_gmm(self, gmm):
@@ -100,9 +99,6 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         if self.explored_manifolds_in_foliation is not None:
             self.explored_manifolds_in_foliation.clear()
             del self.explored_manifolds_in_foliation
-        if self.explored_intersections_in_foliation is not None:
-            self.explored_intersections_in_foliation.clear()
-            del self.explored_intersections_in_foliation
         if self.FoliatedRepMap is not None:
             self.FoliatedRepMap.clear()
             del self.FoliatedRepMap
@@ -120,7 +116,6 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
         # reset the foliated Repetition Roadmap
         self.explored_manifolds_in_foliation = set()
-        self.explored_intersections_in_foliation = set()
         self.FoliatedRepMap = nx.DiGraph()
 
     def add_manifold(self, foliation_name, co_parameter_index):
@@ -264,46 +259,36 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
             # return the edges of the shortest path
             for i in range(len(path) - 1):
+                current_sampled_intersections = self.intersection_sampler.generate_configurations_on_intersection(
+                    self.foliations_set[path[i][0]],
+                    path[i][1],
+                    self.foliations_set[path[i+1][0]],
+                    path[i+1][1],
+                    self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"]
+                )
 
-                if (self.foliations_set[path[i][0]], path[i][1],
-                    self.foliations_set[path[i+1][0]], path[i+1][1]) not in self.explored_intersections_in_foliation:
-
-                    current_sampled_intersections = self.intersection_sampler.generate_configurations_on_intersection(
-                        self.foliations_set[path[i][0]],
-                        path[i][1],
-                        self.foliations_set[path[i+1][0]],
-                        path[i+1][1],
-                        self.mode_transition_graph.get_edge_data(path[i], path[i+1])["intersection_detail"]
-                    )
-
-                    if len(current_sampled_intersections) == 0:
-                        self.add_penalty(
-                            path[i][0],
-                            path[i][1],
-                            path[i+1][0],
-                            path[i+1][1],
-                            10.0
-                        )
-                        found_lead = False
-                        break
-
-                    # mark intersection as explored only if there are intersections.
-                    self.explored_intersections_in_foliation.add(
-                        (self.foliations_set[path[i][0]], path[i][1],
-                        self.foliations_set[path[i+1][0]], path[i+1][1])
-                    )
-
-                    # collect the sampled intersections
-                    sampled_intersections += current_sampled_intersections
-
-                    # add penalty to the edge
+                if len(current_sampled_intersections) == 0:
                     self.add_penalty(
                         path[i][0],
                         path[i][1],
                         path[i+1][0],
                         path[i+1][1],
-                        0.1
+                        10.0
                     )
+                    found_lead = False
+                    break
+
+                # collect the sampled intersections
+                sampled_intersections += current_sampled_intersections
+
+                # add penalty to the edge
+                self.add_penalty(
+                    path[i][0],
+                    path[i][1],
+                    path[i+1][0],
+                    path[i+1][1],
+                    0.1
+                )
 
             if found_lead:
                 '''
@@ -376,7 +361,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                             continue
                         
                         # only consider the intersection node leading to closer to the goal node.
-                        if distance_to_goal_map[u] > distance_to_goal_map[v]:
+                        if distance_to_goal_map[u] > distance_to_goal_map[v] and nx.has_path(self.FoliatedRepMap, start_node, u):
                             next_intersections.append(self.FoliatedRepMap.edges[u, v]["intersection"])
                             nodes_to_next = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=u, weight="weight")
                             for exp_n in nodes_to_next:
@@ -624,6 +609,15 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                     mode_transition[3],
                     10.0
                 )
+
+                # remove the edges from foliated repetition roadmap
+                for u, v, edge_attr in self.FoliatedRepMap.edges(data=True):
+                    # if the edge is not an intersection edge, then skip it.
+                    if not edge_attr["is_intersection"]:
+                        continue
+                    
+                    if u[0] == mode_transition[0] and u[1] == mode_transition[1] and v[0] == mode_transition[2] and v[1] == mode_transition[3]:
+                        self.FoliatedRepMap.remove_edge(u, v)
 
 
         sampled_data_distribution_tag_table = self.generate_sampled_distribution_tag_table(experience)

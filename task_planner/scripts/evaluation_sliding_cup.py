@@ -179,7 +179,7 @@ if __name__ == "__main__":
         INIT_ACTIVE_JOINT_POSITIONS,
     )
 
-    total_attempts = 5
+    total_attempts = 100
     task_planners_name = []
     task_planners_average_planning_time = []
     task_planners_average_planning_length = []
