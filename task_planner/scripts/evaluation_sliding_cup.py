@@ -9,6 +9,7 @@ from foliation_planning.foliated_base_class import FoliatedProblem, Intersection
 from foliation_planning.foliated_planning_framework import FoliatedPlanningFramework
 from MTG_task_planner import MTGTaskPlanner
 from FoliatedRepMap_task_planner import FoliatedRepMapTaskPlanner
+from Atlas_FoliatedRepMap_task_planner import AtlasFoliatedRepMapTaskPlanner
 from jiaming_motion_planner import MoveitMotionPlanner
 from custom_intersection_sampler import CustomIntersectionSampler
 from jiaming_helper import generate_similarity_matrix, GRIPPER_ROTATION, INIT_ACTIVE_JOINT_POSITIONS
@@ -121,7 +122,7 @@ if __name__ == "__main__":
     }
 
     intersection_slide_object_reset_robot = {
-        "name": "pour_object_reset_robot",
+        "name": "slide_object_reset_robot",
         "foliation1": "slide_object",
         "foliation2": "reset_robot",
         "intersection_detail": {
@@ -150,6 +151,7 @@ if __name__ == "__main__":
     
     foliated_planning_framework = FoliatedPlanningFramework()
     foliated_planning_framework.setMaxAttemptTime(20)
+    motion_planner = MoveitMotionPlanner()
     #########################################################
     # prepare the task planners
     task_planners = []
@@ -163,9 +165,11 @@ if __name__ == "__main__":
     gmm.load_distributions(gmm_dir_path)
     FoliatedRepMap_task_planner = FoliatedRepMapTaskPlanner(gmm)
     task_planners.append(FoliatedRepMap_task_planner)
+
+    AtlasFoliatedRepMap_task_planner = AtlasFoliatedRepMapTaskPlanner(gmm,  motion_planner.move_group.get_current_state())
+    task_planners.append(AtlasFoliatedRepMap_task_planner)
     #########################################################
     
-    motion_planner = MoveitMotionPlanner()
     intersection_sampler = CustomIntersectionSampler(motion_planner.robot, motion_planner.scene)
     foliated_planning_framework.setIntersectionSampler(intersection_sampler)
     foliated_planning_framework.setMotionPlanner(motion_planner)

@@ -7,8 +7,15 @@ from foliation_planning.foliated_base_class import (
 )
 import copy
 
-class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
-    def __init__(self, gmm, planner_name_="FoliatedRepMapTaskPlanner", parameter_dict_={}):
+import rospy
+
+from moveit_msgs.srv import ConstructAtlas, ConstructAtlasRequest
+from moveit_msgs.msg import ConfigurationWithInfo
+from moveit_msgs.srv import ResetAtlas, ResetAtlasRequest
+
+class AtlasFoliatedRepMapTaskPlanner(BaseTaskPlanner):
+    # check: Done
+    def __init__(self, gmm, default_robot_state, planner_name_="AtlasFoliatedRepMapTaskPlanner", parameter_dict_={}):
         # Constructor
         super(BaseTaskPlanner, self).__init__()  # python 2
         # super().__init__() # python 3
@@ -31,16 +38,38 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         self.explored_manifolds_in_foliation = None
         self.FoliatedRepMap = None
 
+        # variables for Atlas
+        self.atlas_service = rospy.ServiceProxy("/construct_atlas", ConstructAtlas)
+        self.reset_atlas_service = rospy.ServiceProxy("/reset_atlas", ResetAtlas)
+        self.max_valid_configuration_number_to_atlas = 100
+        self.default_robot_state = default_robot_state
+        self.foliation_with_co_parameter_id = None
+
+    # check: Done
     def prepare_gmm(self, gmm):
         for i in range(len(gmm.distributions)):
             # valid count and invalid count are for valid configurations and invalid configurations due to constraints. While, invalid_count_for_robot_env is for invalid configurations in the robot environment.
-            self.local_foliated_rep_map_template.add_node(i, foliation_name = "", co_parameter_index = -1, weight = 0.0, valid_count = 0, invalid_count = 0, invalid_count_for_robot_env = 0)
+            self.local_foliated_rep_map_template.add_node(
+                i, 
+                foliation_name = "", 
+                co_parameter_index = -1, 
+                weight = 0.0, 
+                valid_count_after_project = 0, # count of valid configurations
+                invalid_count_for_constraints_after_project = 0, # count of invalid configurations due to constraints
+                invalid_count_for_robot_env_after_project = 0, # count of invalid configurations due to collision
+                valid_count_before_project = 0, # count of valid configurations before projection
+                invalid_count_for_constraints_before_project = 0, # count of invalid configurations before projection
+                invalid_count_for_robot_env_before_project = 0, # count of invalid configurations before projection
+                has_atlas = False
+            )
 
         for edge in gmm.edge_of_distribution:
             # this graph is directed, so we need to add two edges
             self.local_foliated_rep_map_template.add_edge(edge[0], edge[1], is_intersection = False, intersection = None, weight = 0.0)
             self.local_foliated_rep_map_template.add_edge(edge[1], edge[0], is_intersection = False, intersection = None, weight = 0.0)
 
+    # check: When you generate a new roadmap for a new manifold, its weight must
+    # be updated carefully.
     def generate_local_foliated_rep_map(self, foliation_name, co_parameter_index):
         '''
         Generate a local foliated repetition roadmap based on the foliation name and the co-parameter index.
@@ -68,14 +97,37 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         for _, explored_co_parameter_index in similar_manifolds:
 
             for f, c, distribution_id in local_foliated_rep_map.nodes():
+
+                similarity_score = self.total_similiarity_table[foliation_name][co_parameter_index, explored_co_parameter_index]
                 related_node = self.FoliatedRepMap.nodes[(foliation_name, explored_co_parameter_index, distribution_id)]
+
+                beta_value = 0.0 # beta value is a indicator of whether the motion planner should use the atlas or not for sampling.
+                if not related_node["has_atlas"]:
+                    if related_node["valid_count_before_project"] + related_node["invalid_count_for_constraints_before_project"] + related_node["invalid_count_for_robot_env_before_project"] == 0:
+                        # this local region does not have both atlas and any sampled configuration befor project, then skip it.
+                        continue
+                    else:
+                        beta_value = 0.0
+                else:
+                    if related_node["valid_count_before_project"] + related_node["invalid_count_for_constraints_before_project"] + related_node["invalid_count_for_robot_env_before_project"] == 0:
+                        # if this local region does not have any sampled configuration before projection, then use the atlas.
+                        beta_value = 1.0
+                    else:
+                        beta_value = 1.0 * related_node["valid_count_before_project"] / (related_node["valid_count_before_project"] + related_node["invalid_count_for_constraints_before_project"] + related_node["invalid_count_for_robot_env_before_project"])
+                
                 local_foliated_rep_map.nodes[(f, c, distribution_id)]["weight"] += \
                 (
-                    self.total_similiarity_table[foliation_name][co_parameter_index, explored_co_parameter_index] * 
-                    (
-                        self.success_penalty_for_foliated_rep_map * related_node["valid_count"] + 
-                        self.failure_penalty_for_foliated_rep_map * related_node["invalid_count"]
-                    ) + self.failure_penalty_for_foliated_rep_map * related_node["invalid_count_for_robot_env"]
+                    (1.0 - beta_value) * (
+                        (
+                            related_node["valid_count_before_project"] * self.success_penalty_for_foliated_rep_map + 
+                            related_node["invalid_count_for_constraints_before_project"] * self.failure_penalty_for_foliated_rep_map
+                        ) * similarity_score + related_node["invalid_count_for_robot_env_before_project"] * self.failure_penalty_for_foliated_rep_map
+                    ) + beta_value * (
+                        (
+                            related_node["valid_count_after_project"] * self.success_penalty_for_foliated_rep_map +
+                            related_node["invalid_count_for_constraints_after_project"] * self.failure_penalty_for_foliated_rep_map
+                        ) * similarity_score + related_node["invalid_count_for_robot_env_after_project"] * self.failure_penalty_for_foliated_rep_map
+                    )
                 )
 
         # update the edge's value by summing the weights of two nodes
@@ -84,6 +136,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
         return local_foliated_rep_map
 
+    # check: Done
     def reset_task_planner(self):
 
         # need to clear memory.
@@ -102,10 +155,14 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         if self.FoliatedRepMap is not None:
             self.FoliatedRepMap.clear()
             del self.FoliatedRepMap
+        if self.foliation_with_co_parameter_id is not None:
+            self.foliation_with_co_parameter_id.clear()
+            del self.foliation_with_co_parameter_id
 
         self.mode_transition_graph = nx.Graph()
         self.manifolds_in_foliation = {} # {foliation_name: [manifold1, manifold2, ...]}
         self.transition_maps = {} # {(foliation1_name, foliation2_name): [(manifold1, manifold2), ...]}
+        self.foliation_with_co_parameter_id = {} # {foliation_name: [co_parameter_index1, co_parameter_index2, ...]}
 
         self.start_foliation_name = None
         self.start_co_parameter_index = None
@@ -118,6 +175,9 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         self.explored_manifolds_in_foliation = set()
         self.FoliatedRepMap = nx.DiGraph()
 
+        self.reset_atlas_service.call(ResetAtlasRequest())
+
+    # check: Done
     def add_manifold(self, foliation_name, co_parameter_index):
         self.mode_transition_graph.add_node((foliation_name, co_parameter_index))
         # if foliation_name not in self.manifolds_in_foliation then add it to the dictionary
@@ -128,6 +188,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         if foliation_name not in self.foliation_name_map:
             self.foliation_name_map[foliation_name] = len(self.foliation_name_map)
 
+    # check: Done
     def add_foliated_intersection(self, foliation1_name, foliation2_name, intersection_detail):
         transition_pairs = self.intersection_rule.find_connected_co_parameters(self.foliations_set[foliation1_name], self.foliations_set[foliation2_name])
 
@@ -136,6 +197,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             self.mode_transition_graph.add_edge((foliation1_name, i), (foliation2_name, j), intersection_detail=intersection_detail, weight=0.0)
             self.transition_maps[(foliation1_name, foliation2_name)].append(((foliation1_name, i), (foliation2_name, j)))
 
+    # check: Done
     def add_penalty(self, foliation_1, manifold_1_index, foliation_2, manifold_2_index, penalty):
         '''
         Add penalty to the edge between two manifolds.
@@ -151,15 +213,15 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                     self.mode_transition_graph[manifolds_from_first_foliation[i]][manifolds_from_second_foliation[j]]["weight"] += \
                         penalty * self.total_similiarity_table[foliation_1][manifold_1_index][i] * self.total_similiarity_table[foliation_2][manifold_2_index][j]
 
-    def set_start_and_goal(
-        self,
+    # check: Done
+    def set_start_and_goal(self,
         start_foliation_name_,
         start_co_parameter_index_,
         start_configuration_,
         goal_foliation_name_,
         goal_co_parameter_index_,
-        goal_configuration_,
-    ):
+        goal_configuration_,):
+
         self.start_foliation_name = start_foliation_name_
         self.start_co_parameter_index = start_co_parameter_index_
         self.start_configuration = start_configuration_
@@ -167,6 +229,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         self.goal_co_parameter_index = goal_co_parameter_index_
         self.goal_configuration = goal_configuration_
 
+    # check: Done
     def update_foliated_rep_map(self, sampled_intersections):
         '''
         Update the foliated repetition roadmap based on the sampled intersections.
@@ -208,6 +271,9 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                 )
 
                 self.explored_manifolds_in_foliation.add((intersection_start_foliation_name, intersection_start_co_parameter_index))
+                if intersection_start_foliation_name not in self.foliation_with_co_parameter_id:
+                    self.foliation_with_co_parameter_id[intersection_start_foliation_name] = []
+                self.foliation_with_co_parameter_id[intersection_start_foliation_name].append(intersection_start_co_parameter_index)
 
                 # update the edge weight
                 self.update_edge_weight(intersection_start_foliation_name)
@@ -220,6 +286,9 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                 )
 
                 self.explored_manifolds_in_foliation.add((intersection_goal_foliation_name, intersection_goal_co_parameter_index))
+                if intersection_goal_foliation_name not in self.foliation_with_co_parameter_id:
+                    self.foliation_with_co_parameter_id[intersection_goal_foliation_name] = []
+                self.foliation_with_co_parameter_id[intersection_goal_foliation_name].append(intersection_goal_co_parameter_index)
 
                 self.update_edge_weight(intersection_goal_foliation_name)
 
@@ -232,6 +301,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                 weight = 0.1
             )
 
+    # check: Done
     def generate_lead_sequence(self, current_start_configuration, current_foliation_name, current_co_parameter_index):
         '''
         Similar to the MTG task planner, this funciton first generates a lead sequence between the start and the goal
@@ -318,6 +388,47 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
         return [], None
 
+    def get_related_nodes(self, current_node):
+        """
+        Return a list of co-parameter with beta value and similarity score.
+        """
+        result = []
+        # explored_manifolds_in_foliation
+        for co_parameter_index in self.foliation_with_co_parameter_id[current_node[0]]:
+            related_node = self.FoliatedRepMap.nodes[(current_node[0], co_parameter_index, current_node[2])]
+            if related_node["has_atlas"]:
+                number_of_configuration_before_project = (
+                    related_node["valid_count_before_project"]
+                    + related_node["invalid_count_for_constraints_before_project"]
+                    + related_node["invalid_count_for_robot_env_before_project"]
+                )
+
+                number_of_invalid_configuration_before_project = (
+                    related_node["invalid_count_for_constraints_before_project"]
+                    + related_node["invalid_count_for_robot_env_before_project"]
+                )
+                similarity_score = self.total_similiarity_table[current_node[0]][
+                    co_parameter_index, current_node[1]
+                ]
+                if number_of_configuration_before_project == 0:
+                    result.append(
+                        (
+                            co_parameter_index,
+                            1.0,
+                            similarity_score
+                        )
+                    )
+                else:
+                    result.append(
+                        (
+                            co_parameter_index,
+                            (1.0 * number_of_invalid_configuration_before_project) / number_of_configuration_before_project,
+                            similarity_score
+                        )
+                    )
+        return result
+
+    # check: Need to build the task correctly with the related atlas experience.
     def generate_task_with_multi_goals(self, start_node, goal_node):
         # print "start node: ", start_node
         # print "goal node: ", goal_node
@@ -330,7 +441,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             task_node_experience = []
             for exp_n in nodes_to_goal:
                 task_node_experience.append(
-                    ((self.foliation_name_map[exp_n[0]], exp_n[1], exp_n[2]), self.gmm_.distributions[exp_n[2]], [])
+                    ((self.foliation_name_map[exp_n[0]], exp_n[1], exp_n[2]), self.gmm_.distributions[exp_n[2]], self.get_related_nodes(exp_n))
                 )
 
             task = Task(
@@ -338,7 +449,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                 self.foliations_set[start_node[0]].co_parameters[start_node[1]], # co_parameters
                 task_node_experience, # related experience
                 self.intersection_sampler.generate_final_configuration(self.foliations_set[goal_node[0]], goal_node[1], self.goal_configuration), # intersection
-                False
+                True
             )
 
             return [task]
@@ -370,7 +481,7 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             task_node_experience = []
             for exp_n in list(related_nodes):
                 task_node_experience.append(
-                    ((self.foliation_name_map[exp_n[0]], exp_n[1], exp_n[2]), self.gmm_.distributions[exp_n[2]], [])
+                    ((self.foliation_name_map[exp_n[0]], exp_n[1], exp_n[2]), self.gmm_.distributions[exp_n[2]], self.get_related_nodes(exp_n))
                 )
 
             task = Task(
@@ -385,74 +496,26 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
             return [task]
 
-    # def generate_task_sequence(self, start_node, goal_node):
-    #     '''
-    #     Generate the task sequence from start node to goal node based on the folaited repetation roadmap.
-    #     '''
+    # check: done
+    def generate_sampled_distribution_tag_table_and_construct_atlas(self, plan_, current_manifold_id, manifold_constraint_):
 
-    #     path_from_foliated_rep_map = nx.shortest_path(self.FoliatedRepMap, source=start_node, target=goal_node)
-        
-    #     task_sequence = []
-
-    #     task_start_configuration = self.start_configuration
-    #     task_node_experience = [] # each element is a tuple (node_id, distribution, list_of_related_nodes) This list of related nodes is used for Atlas.
-
-    #     for node1, node2 in zip(path_from_foliated_rep_map[:-1], path_from_foliated_rep_map[1:]):
-
-    #         current_edge = self.FoliatedRepMap.get_edge_data(node1, node2)
-
-    #         task_node_experience.append(
-    #             ((self.foliation_name_map[node1[0]], node1[1], node1[2]), self.gmm_.distributions[node1[2]], [])
-    #         )
-
-    #         if current_edge["is_intersection"]:
-                
-    #             # current edge is a transition edge from one manifold to another manifold
-    #             task = Task(
-    #                 self.foliations_set[node1[0]].constraint_parameters, # constraint_parameters
-    #                 self.foliations_set[node1[0]].co_parameters[node1[1]], # co_parameters
-    #                 task_node_experience, # related experience
-    #                 [current_edge["intersection"]], # intersection
-    #                 False
-    #             )
-    #             task_node_experience = []
-    #             task_sequence.append((task, (node1[0], node1[1], node2[0], node2[1])))
-
-    #     task_node_experience.append(
-    #         ((self.foliation_name_map[path_from_foliated_rep_map[-1][0]], path_from_foliated_rep_map[-1][1], path_from_foliated_rep_map[-1][2]), 
-    #         self.gmm_.distributions[path_from_foliated_rep_map[-1][2]], 
-    #         [])
-    #     )
-
-    #     # add the last task
-    #     task = Task(
-    #         self.foliations_set[path_from_foliated_rep_map[-1][0]].constraint_parameters, # constraint_parameters
-    #         self.foliations_set[path_from_foliated_rep_map[-1][0]].co_parameters[path_from_foliated_rep_map[-1][1]], # co_parameters
-    #         task_node_experience, # related experience
-    #         self.intersection_sampler.generate_final_configuration(self.foliations_set[path_from_foliated_rep_map[-1][0]], path_from_foliated_rep_map[-1][1], self.goal_configuration), # goal configuration
-    #         False
-    #     )
-
-    #     task_sequence.append((task, (path_from_foliated_rep_map[-1][0], path_from_foliated_rep_map[-1][1],None, None)))
-
-    #     return task_sequence
-
-    def generate_sampled_distribution_tag_table(self, plan):
         # if sampled data is empty, then skip it.
-        if len(plan[4].verified_motions) == 0:
+        if len(plan_[4].verified_motions) == 0:
             print("sampled data is empty.")
-            return None
+            return
 
         sampled_data_numpy = np.array(
-            [sampled_data.sampled_state for sampled_data in plan[4].verified_motions]
+            [sampled_data.sampled_state for sampled_data in plan_[4].verified_motions]
         )
+
+        if np.isnan(sampled_data_numpy).any():
+            print(sampled_data_numpy)
+            raise ValueError("sampled data contains nan.")
 
         # if sampled_data_numpy is empty, then skip it.
         sampled_data_distribution_id = self.gmm_._sklearn_gmm.predict(
             sampled_data_numpy
         ).tolist()
-
-        # the task graph info here is the manifold id(foliatino id and co-parameter id) of the current task.
 
         # initialize a table with number of distributions in GMM times 4.
         # each row is a distribution in GMM, and each column is a tag of sampled data.
@@ -461,25 +524,59 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         # tag in column 1: arm-env collision or out of joint limit
         # tag in column 2: path constraint violation
         # tag in column 3: obj-env collision
-        sampled_data_distribution_tag_table = np.zeros(
-            (len(self.gmm_.distributions), 4)
-        )
+        # tag in column 4: valid configuration before project
+        # tag in column 5: invalid configuration due to arm-env collision or out of joint limit before project
+        # tag in column 6: invalid configuration due to path constraint violation before project
+        # tag in column 7: invalid configuration due to obj-env collision before project
+        sampled_data_distribution_tag_table = np.zeros((len(self.gmm_.distributions), 8))
+
+        construct_atlas_request = ConstructAtlasRequest()
+        construct_atlas_request.group_name = "arm"
+        construct_atlas_request.foliation_id = self.foliation_name_map[current_manifold_id[0]]
+        construct_atlas_request.co_parameter_id = current_manifold_id[1]
+        construct_atlas_request.list_of_configuration_with_info = []
+        construct_atlas_request.default_state = self.default_robot_state
+        construct_atlas_request.constraints = manifold_constraint_
 
         # count the number of sampled data with the same distribution id and tag.
         for i in range(len(sampled_data_distribution_id)):
             sampled_data_gmm_id = sampled_data_distribution_id[i]
-            sampled_data_tag = plan[4].verified_motions[i].sampled_state_tag
+            sampled_data_tag = plan_[4].verified_motions[i].sampled_state_tag
 
-            if sampled_data_tag == 0 or sampled_data_tag == 5:
+            if sampled_data_tag == 0:
                 sampled_data_distribution_tag_table[sampled_data_gmm_id][0] += 1
-            elif sampled_data_tag == 1 or sampled_data_tag == 6:
+
+                # in some cases. the number of valid configuration is too large, so we need to constrain the number of valid 
+                # configuration to atlas for each node of the current manifold.
+                if sampled_data_distribution_tag_table[sampled_data_gmm_id][0] < self.max_valid_configuration_number_to_atlas:
+                    configuration_with_info = ConfigurationWithInfo()
+                    configuration_with_info.joint_configuration = (
+                        plan_[4].verified_motions[i].sampled_state
+                    )
+                    configuration_with_info.distribution_id = sampled_data_gmm_id
+                    construct_atlas_request.list_of_configuration_with_info.append(configuration_with_info)
+
+            elif sampled_data_tag == 1:
                 sampled_data_distribution_tag_table[sampled_data_gmm_id][1] += 1
-            elif sampled_data_tag == 2 or sampled_data_tag == 7:
+            elif sampled_data_tag == 2:
                 sampled_data_distribution_tag_table[sampled_data_gmm_id][2] += 1
-            elif sampled_data_tag == 4 or sampled_data_tag == 9:
+            elif sampled_data_tag == 4:
                 sampled_data_distribution_tag_table[sampled_data_gmm_id][3] += 1
+            elif sampled_data_tag == 5:
+                sampled_data_distribution_tag_table[sampled_data_gmm_id][4] += 1
+            elif sampled_data_tag == 6:
+                sampled_data_distribution_tag_table[sampled_data_gmm_id][5] += 1
+            elif sampled_data_tag == 7:
+                sampled_data_distribution_tag_table[sampled_data_gmm_id][6] += 1
+            elif sampled_data_tag == 9:
+                sampled_data_distribution_tag_table[sampled_data_gmm_id][7] += 1
+        
+        if len(construct_atlas_request.list_of_configuration_with_info) != 0:
+            self.atlas_service.call(construct_atlas_request)
+
         return sampled_data_distribution_tag_table
 
+    # check: Done
     def update_edge_weight(self, current_foliation_id):
         '''
         Update the roadmap's edge in the current folaition id. You may want to do this parallelly.
@@ -501,15 +598,15 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
     def update_foliated_rep_map_weight(self, n, current_manifold_id, sampled_data_distribution_tag_table):
         """
-        Update the weight of a node in the task graph.
+        Update the weight of a node in the FoliatedRepMap.
         Args:
-            n: the node in the task graph.
+            n: the node in the FoliatedRepMap.
             current_manifold_id: the manifold id of the current task. (foliation id and co-parameter index)
             sampled_data_distribution_tag_table: a table with shape (number of distributions in GMM, 4).
         Returns:
             None
         """
-
+        
         # if not in the same foliation, then continue
         if n[0] != current_manifold_id[0]:
             return
@@ -522,34 +619,36 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
             node_co_parameter_id, current_manifold_id[1]
         ]
 
-        success_score = (
-            current_similarity_score * sampled_data_distribution_tag_table[node_gmm_id][0] * self.success_penalty_for_foliated_rep_map
-        )
+        related_node = self.FoliatedRepMap.nodes[(node_foliation_id, node_co_parameter_id, node_gmm_id)]
 
-        arm_env_collision_score = (
-            sampled_data_distribution_tag_table[node_gmm_id][1] * self.failure_penalty_for_foliated_rep_map
-        ) # no current similarity score here due to it is the arm env collision.
-
-        path_constraint_violation_score = (
-            current_similarity_score
-            * sampled_data_distribution_tag_table[node_gmm_id][2]
-            * self.failure_penalty_for_foliated_rep_map
-        )
-
-        obj_env_collision_score = (
-            current_similarity_score
-            * sampled_data_distribution_tag_table[node_gmm_id][3]
-            * self.failure_penalty_for_foliated_rep_map
-        )
-
+        beta_value = 0.0 # beta value is a indicator of whether the motion planner should use the atlas or not for sampling.
+        if not related_node["has_atlas"]:
+            if related_node["valid_count_before_project"] + related_node["invalid_count_for_constraints_before_project"] + related_node["invalid_count_for_robot_env_before_project"] == 0:
+                # this local region does not have both atlas and any sampled configuration befor project, then skip it.
+                return
+            else:
+                beta_value = 0.0
+        else:
+            if related_node["valid_count_before_project"] + related_node["invalid_count_for_constraints_before_project"] + related_node["invalid_count_for_robot_env_before_project"] == 0:
+                # if this local region does not have any sampled configuration before projection, then use the atlas.
+                beta_value = 1.0
+            else:
+                beta_value = 1.0 * related_node["valid_count_before_project"] / (related_node["valid_count_before_project"] + related_node["invalid_count_for_constraints_before_project"] + related_node["invalid_count_for_robot_env_before_project"])
+        
+        success_score_after_project = self.success_penalty_for_foliated_rep_map * sampled_data_distribution_tag_table[node_gmm_id][0]
+        robot_env_score_after_project = self.failure_penalty_for_foliated_rep_map * sampled_data_distribution_tag_table[node_gmm_id][1]
+        constraints_score_after_project = self.failure_penalty_for_foliated_rep_map * (sampled_data_distribution_tag_table[node_gmm_id][2] + sampled_data_distribution_tag_table[node_gmm_id][3])
+        
+        success_score_before_project = self.success_penalty_for_foliated_rep_map * sampled_data_distribution_tag_table[node_gmm_id][4]
+        robot_env_score_before_project = self.failure_penalty_for_foliated_rep_map * sampled_data_distribution_tag_table[node_gmm_id][5]
+        constraints_score_before_project = self.failure_penalty_for_foliated_rep_map * (sampled_data_distribution_tag_table[node_gmm_id][6] + sampled_data_distribution_tag_table[node_gmm_id][7])
+        
         weight_value = (
-            success_score
-            + arm_env_collision_score
-            + path_constraint_violation_score
-            + obj_env_collision_score
+            beta_value * (current_similarity_score * (success_score_after_project + constraints_score_after_project) + robot_env_score_after_project) +
+            (1.0 - beta_value) * (current_similarity_score * (success_score_before_project + constraints_score_before_project) + robot_env_score_before_project)
         )
 
-        self.FoliatedRepMap.nodes[n]["weight"] += weight_value
+        related_node["weight"] += weight_value
 
     def update_valid_invalid_counts(self, manifold_id, sampled_data_distribution_tag_table):
 
@@ -557,15 +656,21 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
         co_parameter_index = manifold_id[1]
 
         for i in range(len(sampled_data_distribution_tag_table)):
-            self.FoliatedRepMap.nodes[(foliation_id, co_parameter_index, i)]["valid_count"] += sampled_data_distribution_tag_table[i][0]
-            self.FoliatedRepMap.nodes[(foliation_id, co_parameter_index, i)]["invalid_count"] += (
-                sampled_data_distribution_tag_table[i][2]
-                + sampled_data_distribution_tag_table[i][3]
-            )
-            self.FoliatedRepMap.nodes[(foliation_id, co_parameter_index, i)]["invalid_count_for_robot_env"] += sampled_data_distribution_tag_table[i][1]
+            current_node = self.FoliatedRepMap.nodes[(foliation_id, co_parameter_index, i)]
+            current_node["valid_count_after_project"] += sampled_data_distribution_tag_table[i][0]
+            current_node["invalid_count_for_robot_env_after_project"] += sampled_data_distribution_tag_table[i][1]
+            current_node["invalid_count_for_constraints_after_project"] += sampled_data_distribution_tag_table[i][2] + sampled_data_distribution_tag_table[i][3]
+            current_node["valid_count_before_project"] += sampled_data_distribution_tag_table[i][4]
+            current_node["invalid_count_for_robot_env_before_project"] += sampled_data_distribution_tag_table[i][5]
+            current_node["invalid_count_for_constraints_before_project"] += sampled_data_distribution_tag_table[i][6] + sampled_data_distribution_tag_table[i][7]
 
+            if sampled_data_distribution_tag_table[i][0] > 0:
+                current_node['has_atlas'] = True
 
     def update(self, mode_transitions, success_flag, experience, manifold_constraint):
+
+        if manifold_constraint is None:
+            raise ValueError("manifold_constraint is None.")
 
         # print "update motion transition ", mode_transition
         # print "current manifold id ", current_manifold_id
@@ -615,9 +720,8 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
                     
                     if u[0] == mode_transition[0] and u[1] == mode_transition[1] and v[0] == mode_transition[2] and v[1] == mode_transition[3]:
                         self.FoliatedRepMap.remove_edge(u, v)
-
-
-        sampled_data_distribution_tag_table = self.generate_sampled_distribution_tag_table(experience)
+ 
+        sampled_data_distribution_tag_table = self.generate_sampled_distribution_tag_table_and_construct_atlas(experience, current_manifold_id, manifold_constraint)
 
         if sampled_data_distribution_tag_table is None:
             return
@@ -631,3 +735,9 @@ class FoliatedRepMapTaskPlanner(BaseTaskPlanner):
 
         # update the edge weight
         self.update_edge_weight(current_manifold_id[0])
+
+        # check how many nodes in the foliated repetition roadmap has atlas.
+        temp = []
+        for n, has_atlas in self.FoliatedRepMap.nodes(data="has_atlas"):
+            if has_atlas:
+                temp.append(n)

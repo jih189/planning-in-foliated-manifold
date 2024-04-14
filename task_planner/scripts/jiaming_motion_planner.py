@@ -209,7 +209,7 @@ class MoveitMotionPlanner(BaseMotionPlanner):
                 None, # motion plan result
                 None, # next motion
                 motion_plan_result, # experience
-                None, # manifold constraint
+                manifold_constraint, # manifold constraint
                 None, # last configuration
                 None # next manifold id
             )
